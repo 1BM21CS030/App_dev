@@ -1,0 +1,30 @@
+{
+  "project_info": {
+    "project_number": "293421021076",
+    "firebase_url": "https://monitor-bmsce-default-rtdb.asia-southeast1.firebasedatabase.app",
+    "project_id": "monitor-bmsce",
+    "storage_bucket": "monitor-bmsce.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:293421021076:android:645cbeb2da9335d6bc8181",
+        "android_client_info": {
+          "package_name": "com.example.fitbit_theme"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBmTN-kKf8o2MHmoGmb5xk3m21YcLQsg28"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
