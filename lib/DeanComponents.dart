@@ -1,8 +1,9 @@
 // ignore_for_file: file_names, unused_import, camel_case_types, library_private_types_in_public_api, must_be_immutable, no_logic_in_create_state, use_build_context_synchronously
 
 import 'dart:async';
+import 'dart:ffi';
 import 'dart:io';
-
+import 'package:intl/intl.dart';
 import 'package:excel/excel.dart' as e;
 import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
@@ -10,14 +11,8 @@ import 'package:path/path.dart' as p;
 import 'package:firebase_core/firebase_core.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
-class logo extends StatefulWidget {
+class logo extends StatelessWidget {
   const logo({super.key});
-  @override
-  _logo createState() => _logo();
-}
-
-class _logo extends State<logo> {
-  List<Color> colors = [Colors.lightBlue, Colors.white];
 
   @override
   Widget build(BuildContext context) {
@@ -25,9 +20,10 @@ class _logo extends State<logo> {
         child: Container(
             height: 200,
             width: 200,
-            decoration: BoxDecoration(
+            decoration: const BoxDecoration(
                 shape: BoxShape.circle,
-                gradient: RadialGradient(colors: colors)),
+                gradient:
+                    RadialGradient(colors: [Colors.lightBlue, Colors.white])),
             child: Image.asset(
               'images/logo-modified.png',
             )));
@@ -127,7 +123,32 @@ class _date extends State<date> {
 
     if (picked != null && picked != selected) {
       setState(() {
-        selected = picked;
+        if (picked.compareTo(DateTime.now()) > 0) {
+          showDialog(
+              context: context,
+              builder: (BuildContext context) {
+                return AlertDialog(
+                  title: const Text(
+                    'Future date selected',
+                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                  ),
+                  titlePadding: const EdgeInsets.all(10),
+                  content: const Text('Please choose a date prior to today.',
+                      style: TextStyle(fontSize: 18)),
+                  contentPadding: const EdgeInsets.all(10),
+                  actions: [
+                    TextButton(
+                      onPressed: () {
+                        Navigator.of(context).pop();
+                      },
+                      child: const Text('OK'),
+                    )
+                  ],
+                );
+              });
+        } else {
+          selected = picked;
+        }
       });
     }
   }
@@ -152,7 +173,7 @@ class _date extends State<date> {
                   const SizedBox(width: 10),
                   ElevatedButton(
                       onPressed: () => _selected(context),
-                      child: Text('${selected.toLocal()}'.split(' ')[0],
+                      child: Text(DateFormat('dd-MM-yyyy').format(selected),
                           style: const TextStyle(
                               fontSize: 18, color: Colors.black)))
                 ])));
@@ -161,23 +182,15 @@ class _date extends State<date> {
 
 class dropdown extends StatefulWidget {
   List<String> reports;
-  dropdown({super.key, required this.reports});
+  ValueChanged<String> onChanged;
+  static String selected = 'All Departments';
+  dropdown({super.key, required this.reports, required this.onChanged});
 
   @override
-  _dropdown createState() => _dropdown(reports);
+  _dropdown createState() => _dropdown();
 }
 
 class _dropdown extends State<dropdown> {
-  String selected = '';
-  List<String> reports;
-  _dropdown(this.reports);
-
-  @override
-  void initState() {
-    super.initState();
-    selected = reports.first;
-  }
-
   @override
   Widget build(BuildContext context) {
     return Padding(
@@ -194,15 +207,17 @@ class _dropdown extends State<dropdown> {
                   color: Colors.black,
                   fontSize: 18,
                 ),
+                underline: const SizedBox(),
                 icon: const Icon(Icons.arrow_drop_down, color: Colors.black),
                 iconSize: 18,
-                value: selected,
+                value: dropdown.selected,
                 onChanged: (String? newSel) {
                   setState(() {
-                    selected = newSel!;
+                    dropdown.selected = newSel!;
+                    widget.onChanged(dropdown.selected);
                   });
                 },
-                items: reports.map((String option) {
+                items: widget.reports.map((String option) {
                   return DropdownMenuItem(
                     value: option,
                     child: Text(option),
@@ -286,7 +301,7 @@ class _navBar extends State<navBar> {
             widget.tabSelected(num);
           },
           child: Icon(x,
-              size: 40,
+              size: 45,
               color: navBar.selected == num ? Colors.black : Colors.grey),
         ));
   }
@@ -345,70 +360,6 @@ class uploadBox extends StatelessWidget {
   }
 }
 
-class uploadBoxTT extends StatefulWidget {
-  final String title;
-  static String room = '';
-  const uploadBoxTT({super.key, required this.title});
-  @override
-  _uploadBoxTT createState() => _uploadBoxTT(title: title);
-}
-
-class _uploadBoxTT extends State<uploadBoxTT> {
-  final String title;
-
-  TextEditingController control = TextEditingController();
-  _uploadBoxTT({required this.title});
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-        padding: const EdgeInsets.all(6),
-        child: Container(
-          decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(10),
-              border: Border.all(color: Colors.black, width: 1)),
-          child: Column(
-            children: [
-              Row(mainAxisAlignment: MainAxisAlignment.start, children: [
-                Padding(
-                    padding: const EdgeInsets.all(6),
-                    child: Text(
-                      title,
-                      style: const TextStyle(fontSize: 24, color: Colors.black),
-                    ))
-              ]),
-              Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-                Expanded(
-                    child: Padding(
-                        padding: const EdgeInsets.all(6),
-                        child: TextField(
-                            controller: control,
-                            decoration: const InputDecoration(
-                              labelText: 'Room Number',
-                              border: OutlineInputBorder(),
-                            )))),
-                Padding(
-                    padding: const EdgeInsets.all(6),
-                    child: ElevatedButton(
-                        onPressed: () {
-                          uploadBoxTT.room = control.text;
-
-                          pickfile(context, title);
-                          control.clear();
-                        },
-                        style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.black),
-                        child: const Text(
-                          'Upload',
-                          style: TextStyle(fontSize: 17, color: Colors.white),
-                        )))
-              ])
-            ],
-          ),
-        ));
-  }
-}
-
 Future<void> pickfile(BuildContext context, String title) async {
   FilePickerResult? path = await FilePicker.platform.pickFiles();
   if (path != null) {
@@ -451,99 +402,141 @@ Future<void> parser(BuildContext context, String filePath, String title) async {
       collName = 'DeptList';
       break;
     case "Faculty List":
-      collName = "FacultyList";
+      collName = "DeptList";
       break;
-    case "Team List":
-      collName = "TeamList";
+    case "Course List":
+      collName = p.basenameWithoutExtension(filePath);
       break;
     case "Time Table":
-      collName = "timeTable";
+      collName = p.basenameWithoutExtension(filePath);
       break;
   }
   var bytes = File(filePath).readAsBytesSync();
   var excel = e.Excel.decodeBytes(bytes);
-  // await Firebase.initializeApp();
 
   CollectionReference collection =
       FirebaseFirestore.instance.collection(collName);
   if (title == 'Department List') {
     for (var table in excel.tables.keys) {
-      for (var rowIndex = 0;
+      for (var rowIndex = 1;
           rowIndex < excel.tables[table]!.maxRows;
           rowIndex++) {
-        if (rowIndex != 0) {
-          var row = excel.tables[table]!.rows[rowIndex];
-          DocumentReference docReference =
-              collection.doc(row[0]!.value.toString());
-          await docReference.set({
-            'Rooms': row[1]!.value.toString().split(','),
-            'Convener': row[2]!.value.toString()
-          });
-        }
+        var row = excel.tables[table]!.rows[rowIndex];
+        DocumentReference doc = collection.doc(row[0]!.value.toString());
+        await doc.set({
+          'Members': row[2]!.value.toString().split(',').toList(),
+          'Convener': row[1]!.value.toString()
+        });
       }
     }
-  } else if (title == "Team List" || title == "Faculty List") {
-    var id = (title == "Team List") ? 'Members' : 'Email';
+  } else if (title == "Faculty List") {
+    Map<String, dynamic> data = {};
     for (var table in excel.tables.keys) {
-      for (var rowIndex = 0;
+      for (var rowIndex = 1;
           rowIndex < excel.tables[table]!.maxRows;
           rowIndex++) {
-        if (rowIndex != 0) {
-          var row = excel.tables[table]!.rows[rowIndex];
-          DocumentReference docReference =
-              collection.doc(row[0]!.value.toString());
-          await docReference.set({id: row[1]!.value.toString().split(',')});
+        var row = excel.tables[table]!.rows[rowIndex];
+        if (!data.containsKey(row[3]!.value.toString())) {
+          data[row[3]!.value.toString()] = {'Faculty': []};
         }
+        data[row[3]!.value.toString()]['Faculty']!.add({
+          "Name": row[0]!.value.toString(),
+          'Email': row[1]!.value.toString(),
+          'Code': row[2]!.value.toString()
+        });
+      }
+    }
+    for (var d in data.keys) {
+      DocumentReference doc = collection.doc(d);
+      await doc.update(data[d]);
+    }
+  } else if (title == 'Course List') {
+    DocumentReference doc = collection.doc('Courses');
+    for (var table in excel.tables.keys) {
+      for (var rowIndex = 2;
+          rowIndex < excel.tables[table]!.maxRows;
+          rowIndex++) {
+        var row = excel.tables[table]!.rows[rowIndex];
+        Map<String, String> data = {
+          row[1]!.value.toString(): row[0]!.value.toString()
+        };
+        doc.set(data, SetOptions(merge: true));
       }
     }
   } else if (title == 'Time Table') {
-    if (uploadBoxTT.room != '') {
-      DocumentReference docReference = collection.doc(uploadBoxTT.room);
+    for (var table in excel.tables.keys) {
+      for (var rowIndex = 0;
+          rowIndex < excel.tables[table]!.maxRows - 1;
+          rowIndex = rowIndex + 8) {
+        var row = excel.tables[table]!.rows[rowIndex];
+        String cls = row[0]!.value.toString();
+        String room = row[1]!.value.toString();
 
-      for (var table in excel.tables.keys) {
-        var column = excel.tables[table]!.rows.first;
-        for (var rowIndex = 1;
-            rowIndex < excel.tables[table]!.maxRows;
-            rowIndex++) {
-          var data = {};
-          var row = excel.tables[table]!.rows[rowIndex];
-          for (var colnum = 1;
-              colnum < excel.tables[table]!.maxColumns;
-              colnum++) {
-            if (row[colnum] != null) {
-              data[column[colnum]!.value!.toString()] =
-                  row[colnum]!.value?.toString();
+        for (var i = 1; i < excel.tables[table]!.maxColumns; i++) {
+          DocumentReference doc = collection.doc(
+              excel.tables[table]!.rows[rowIndex + 1][i]!.value.toString());
+          Map<String, dynamic> data = {};
+
+          for (var j = rowIndex + 2; j < rowIndex + 6; j++) {
+            if (excel.tables[table]!.rows[j][i] != null &&
+                excel.tables[table]!.rows[j][i]!.value != null) {
+              var elective = excel.tables[table]!.rows[j][i]!.value
+                  .toString()
+                  .split('/')
+                  .toList();
+
+              for (var e in elective) {
+                if (e.contains('()')) {
+                  RegExp regExp = RegExp(r'([A-Z0-9]+)-([A-Z]+)\(([A-Z0-9])\)');
+                  Match? match = regExp.firstMatch(e);
+
+                  data[excel.tables[table]!.rows[j][0]!.value.toString()] = {
+                    'Room': match!.group(3)!.toString(),
+                    'Course': match.group(1)!.toString(),
+                    'Faculty': match.group(2)!.toString(),
+                    'Class': cls
+                  };
+                } else {
+                  RegExp regExp = RegExp(r'([A-Z0-9]+)-([A-Z]+)');
+                  Match? match = regExp.firstMatch(e);
+
+                  data[excel.tables[table]!.rows[j][0]!.value.toString()] = {
+                    'Room': room,
+                    'Course': match!.group(1)!.toString(),
+                    'Faculty': match.group(2)!.toString(),
+                    'Class': cls
+                  };
+                }
+              }
+
+              await doc.set(data, SetOptions(merge: true));
             }
-          }
-          if (row[0] != null && row[0]!.value != null) {
-            await docReference
-                .set({row[0]!.value.toString(): data}, SetOptions(merge: true));
           }
         }
       }
-    } else {
-      showDialog(
-          context: context,
-          builder: (BuildContext context) {
-            return AlertDialog(
-              title: const Text(
-                'Invalid Room Number',
-                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-              ),
-              titlePadding: const EdgeInsets.all(10),
-              content: const Text('Please enter a valid room.',
-                  style: TextStyle(fontSize: 18)),
-              contentPadding: const EdgeInsets.all(10),
-              actions: [
-                TextButton(
-                  onPressed: () {
-                    Navigator.of(context).pop();
-                  },
-                  child: const Text('OK'),
-                )
-              ],
-            );
-          });
     }
+  } else {
+    showDialog(
+        context: context,
+        builder: (BuildContext context) {
+          return AlertDialog(
+            title: const Text(
+              'Invalid Room Number',
+              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+            ),
+            titlePadding: const EdgeInsets.all(10),
+            content: const Text('Please enter a valid room.',
+                style: TextStyle(fontSize: 18)),
+            contentPadding: const EdgeInsets.all(10),
+            actions: [
+              TextButton(
+                onPressed: () {
+                  Navigator.of(context).pop();
+                },
+                child: const Text('OK'),
+              )
+            ],
+          );
+        });
   }
 }

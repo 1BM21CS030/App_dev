@@ -1,5 +1,6 @@
-// ignore_for_file: must_be_immutable, library_private_types_in_public_api
+// ignore_for_file: must_be_immutable, library_private_types_in_public_api, empty_catches, non_constant_identifier_names
 
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'DeanComponents.dart';
 import 'package:firebase_core/firebase_core.dart';
@@ -68,7 +69,7 @@ class _HomePage extends State<HomePage> {
   }
 
   final List<Widget> pages = [
-    DeanHomePage(),
+    const DeanHomePage(),
     const DeanEditPage(),
     const Profile()
   ];
@@ -106,15 +107,65 @@ class _HomePage extends State<HomePage> {
   }
 }
 
-class DeanHomePage extends StatelessWidget {
-  List<String> reports = [
-    'Computer Science and Engineering',
-    'Information Science and Engineering',
-    'Artificial Intelligence',
-    'Electronics and Communication',
-    'Medical Electronics'
-  ];
-  DeanHomePage({super.key});
+class DeanHomePage extends StatefulWidget {
+  const DeanHomePage({super.key});
+
+  @override
+  _DeanHomePage createState() => _DeanHomePage();
+}
+
+class _DeanHomePage extends State<DeanHomePage> {
+  List<String> reports = [];
+  List<Widget> result = [];
+  ValueNotifier<String> selectedValue =
+      ValueNotifier<String>('All Departments');
+  @override
+  void initState() {
+    super.initState();
+    _initializeData();
+  }
+
+  Future<void> _initializeData() async {
+    reports.add("All Departments");
+    await getDept('DeptList');
+    depts();
+    setState(() {});
+  }
+
+  Future<void> getDept(String collection) async {
+    try {
+      QuerySnapshot query =
+          await FirebaseFirestore.instance.collection(collection).get();
+      for (QueryDocumentSnapshot documentSnapshot in query.docs) {
+        reports.add(documentSnapshot.id);
+      }
+    } catch (e) {}
+  }
+
+  void depts() {
+    for (var r in reports) {
+      result.add(report(
+        title: r,
+      ));
+    }
+  }
+
+  List<Widget> selector() {
+    int selectedIndex = reports.indexOf(dropdown.selected);
+
+    if (dropdown.selected == 'All Departments' && result.isNotEmpty) {
+      return result.sublist(1, reports.length);
+    } else if (selectedIndex >= 0 && selectedIndex < result.length) {
+      return [result[selectedIndex]];
+    } else {
+      return [];
+    }
+  }
+
+  void onDropdownChanged(String newSelection) {
+    selectedValue.value = newSelection;
+  }
+
   @override
   Widget build(BuildContext context) {
     return Column(crossAxisAlignment: CrossAxisAlignment.center, children: [
@@ -126,16 +177,20 @@ class DeanHomePage extends StatelessWidget {
         children: [
           const freqReport(),
           const date(),
-          dropdown(reports: reports),
-          ListView.builder(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            itemCount: reports.length,
-            itemBuilder: ((context, index) {
-              return report(
-                title: reports[index],
+          dropdown(reports: reports, onChanged: onDropdownChanged),
+          ValueListenableBuilder<String>(
+            valueListenable: selectedValue,
+            builder: (context, value, child) {
+              List<Widget> selectedWidgets = selector();
+              return ListView.builder(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                itemCount: selectedWidgets.length,
+                itemBuilder: (context, index) {
+                  return selectedWidgets[index];
+                },
               );
-            }),
+            },
           )
         ],
       )))
@@ -154,8 +209,8 @@ class DeanEditPage extends StatelessWidget {
       children: [
         uploadBox(title: 'Department List'),
         uploadBox(title: 'Faculty List'),
-        uploadBox(title: 'Team List'),
-        uploadBoxTT(title: 'Time Table')
+        uploadBox(title: 'Course List'),
+        uploadBox(title: 'Time Table')
       ],
     ));
   }
