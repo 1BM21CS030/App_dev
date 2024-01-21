@@ -3,6 +3,7 @@
 import 'dart:async';
 import 'dart:ffi';
 import 'dart:io';
+import 'package:fitbit_theme/TeamApp.dart';
 import 'package:intl/intl.dart';
 import 'package:excel/excel.dart' as e;
 import 'package:flutter/material.dart';
@@ -105,6 +106,7 @@ class _freqReport extends State<freqReport> {
 }
 
 class date extends StatefulWidget {
+  static DateTime selected = DateTime.now();
   const date({super.key});
 
   @override
@@ -112,16 +114,14 @@ class date extends StatefulWidget {
 }
 
 class _date extends State<date> {
-  DateTime selected = DateTime.now();
-
   Future<void> _selected(BuildContext context) async {
     final DateTime? picked = await showDatePicker(
         context: context,
-        initialDate: selected,
+        initialDate: date.selected,
         firstDate: DateTime(2020),
         lastDate: DateTime(2025));
 
-    if (picked != null && picked != selected) {
+    if (picked != null && picked != date.selected) {
       setState(() {
         if (picked.compareTo(DateTime.now()) > 0) {
           showDialog(
@@ -147,7 +147,7 @@ class _date extends State<date> {
                 );
               });
         } else {
-          selected = picked;
+          date.selected = picked;
         }
       });
     }
@@ -173,7 +173,8 @@ class _date extends State<date> {
                   const SizedBox(width: 10),
                   ElevatedButton(
                       onPressed: () => _selected(context),
-                      child: Text(DateFormat('dd-MM-yyyy').format(selected),
+                      child: Text(
+                          DateFormat('dd-MM-yyyy').format(date.selected),
                           style: const TextStyle(
                               fontSize: 18, color: Colors.black)))
                 ])));
@@ -183,8 +184,14 @@ class _date extends State<date> {
 class dropdown extends StatefulWidget {
   List<String> reports;
   ValueChanged<String> onChanged;
-  static String selected = 'All Departments';
-  dropdown({super.key, required this.reports, required this.onChanged});
+  static String selected = '';
+  dropdown(
+      {super.key,
+      required this.reports,
+      required select,
+      required this.onChanged}) {
+    dropdown.selected = select;
+  }
 
   @override
   _dropdown createState() => _dropdown();
@@ -229,8 +236,9 @@ class _dropdown extends State<dropdown> {
 }
 
 class report extends StatelessWidget {
+  final int access;
   final String title;
-  const report({super.key, required this.title});
+  const report({super.key, required this.title, required this.access});
 
   @override
   Widget build(BuildContext context) {
@@ -252,7 +260,16 @@ class report extends StatelessWidget {
                       style: const TextStyle(color: Colors.black, fontSize: 18),
                     )),
                 IconButton(
-                    onPressed: () {},
+                    onPressed: () {
+                      if (access == 0) {
+                      } else {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                              builder: (context) => reportage(dept: title)),
+                        );
+                      }
+                    },
                     icon: const Icon(
                       Icons.arrow_right,
                       color: Colors.black,
@@ -491,20 +508,22 @@ Future<void> parser(BuildContext context, String filePath, String title) async {
                   Match? match = regExp.firstMatch(e);
 
                   data[excel.tables[table]!.rows[j][0]!.value.toString()] = {
-                    'Room': match!.group(3)!.toString(),
-                    'Course': match.group(1)!.toString(),
-                    'Faculty': match.group(2)!.toString(),
-                    'Class': cls
+                    match!.group(3)!.toString(): {
+                      'Course': match.group(1)!.toString(),
+                      'Faculty': match.group(2)!.toString(),
+                      'Class': cls
+                    }
                   };
                 } else {
                   RegExp regExp = RegExp(r'([A-Z0-9]+)-([A-Z]+)');
                   Match? match = regExp.firstMatch(e);
 
                   data[excel.tables[table]!.rows[j][0]!.value.toString()] = {
-                    'Room': room,
-                    'Course': match!.group(1)!.toString(),
-                    'Faculty': match.group(2)!.toString(),
-                    'Class': cls
+                    room: {
+                      'Course': match!.group(1)!.toString(),
+                      'Faculty': match.group(2)!.toString(),
+                      'Class': cls
+                    }
                   };
                 }
               }
