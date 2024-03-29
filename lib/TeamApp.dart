@@ -1,9 +1,8 @@
-// ignore_for_file: library_private_types_in_public_api, empty_catches, non_constant_identifier_names, file_names, camel_case_types, must_be_immutable
+// ignore_for_file: library_private_types_in_public_api, empty_catches, non_constant_identifier_names, file_names, camel_case_types, must_be_immutable, use_build_context_synchronously
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
-import 'package:uuid/uuid.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'DeanComponents.dart';
 import 'DeanApp.dart';
 
@@ -123,12 +122,14 @@ class _TeamHomePage extends State<TeamHomePage> {
 
   Future<void> getDept(String collection) async {
     try {
+      final SharedPreferences s = await SharedPreferences.getInstance();
       QuerySnapshot query =
           await FirebaseFirestore.instance.collection(collection).get();
       for (QueryDocumentSnapshot documentSnapshot in query.docs) {
         Map<String, dynamic> data =
             documentSnapshot.data() as Map<String, dynamic>;
-        if (data['Convener'] == 'E' || data['Members'].contains('E')) {
+        if (data['Convener'] == s.getString('id') ||
+            data['Members'].contains(s.getString('id'))) {
           reports.add(documentSnapshot.id);
         }
       }
@@ -257,7 +258,7 @@ class _reportage extends State<reportage> {
     }
   }
 
-  Future<void> getClasses() async {
+  String getDay() {
     String day = '';
     switch (date.selected.weekday) {
       case DateTime.monday:
@@ -275,16 +276,49 @@ class _reportage extends State<reportage> {
       case DateTime.friday:
         day = 'Friday';
         break;
+      case DateTime.saturday:
+        day = 'Saturday';
+        break;
+      case DateTime.sunday:
+        day = 'Sunday';
+        break;
     }
+    return day;
+  }
 
-    DocumentSnapshot doc = await FirebaseFirestore.instance
-        .collection(widget.dept)
-        .doc(time)
-        .get();
-    Map<String, dynamic> temp = doc.data() as Map<String, dynamic>;
-    if (temp[day] != null) {
-      classes = (temp[day] as Map<String, dynamic>).keys.toList();
+  Future<void> getClasses() async {
+    String day = getDay();
+
+    if (day != 'Sunday' && day != 'Saturday') {
+      QuerySnapshot doc = await FirebaseFirestore.instance
+          .collection(widget.dept)
+          .doc(time)
+          .collection(day)
+          .get();
+      for (QueryDocumentSnapshot d in doc.docs) {
+        classes.add((d.id.toString()));
+      }
     }
+  }
+
+  Future<String> getFaculty(String code) async {
+    String ans = '';
+    QuerySnapshot s =
+        await FirebaseFirestore.instance.collection('DeptList').get();
+    final SharedPreferences sp = await SharedPreferences.getInstance();
+    for (QueryDocumentSnapshot q in s.docs) {
+      QuerySnapshot c = await FirebaseFirestore.instance
+          .collection('DeptList')
+          .doc(q.id)
+          .collection('Faculty')
+          .where('Code', isEqualTo: sp.getString('id'))
+          .get();
+      for (QueryDocumentSnapshot d in c.docs) {
+        Map<String, dynamic> temp = d.data() as Map<String, dynamic>;
+        ans = temp['Name'];
+      }
+    }
+    return ans;
   }
 
   @override
@@ -331,26 +365,43 @@ class _reportage extends State<reportage> {
                 padding: const EdgeInsets.all(16),
                 child: ElevatedButton(
                   onPressed: () async {
-                    Map<String, dynamic> data = {};
+                    CollectionReference doc =
+                        FirebaseFirestore.instance.collection('Reports');
+                    CollectionReference department = FirebaseFirestore.instance
+                        .collection(widget.dept)
+                        .doc(dropdown.selected)
+                        .collection(getDay());
+                    DocumentSnapshot temp = await FirebaseFirestore.instance
+                        .collection(widget.dept)
+                        .doc('Courses')
+                        .get();
+                    Map<String, dynamic> courses =
+                        temp.data() as Map<String, dynamic>;
+
                     for (var i in selectedRooms.keys) {
                       if (selectedRooms[i] == 1) {
-                        data = {
-                          'Date': DateFormat('dd-Mm-yyyy')
-                              .format(date.selected)
-                              .toString(),
-                          'Room': i,
-                          'Time': dropdown.selected
-                        };
-                      }
-                      if (data.isNotEmpty) {
-                        DocumentReference doc = FirebaseFirestore.instance
-                            .collection('Reports')
-                            .doc(widget.dept);
+                        DocumentSnapshot t = await department.doc(i).get();
+                        Map<String, dynamic> data =
+                            t.data() as Map<String, dynamic>;
 
-                        await doc.set(
-                            {const Uuid().v4(): data}, SetOptions(merge: true));
+                        doc
+                            .doc(Timestamp.fromDate(date.selected).toString() +
+                                i +
+                                data['Class'])
+                            .set({
+                          'Department': widget.dept,
+                          'Date': Timestamp.fromDate(date.selected),
+                          'Room': i,
+                          'Time': dropdown.selected,
+                          'Published': false,
+                          'Class': data['Class'],
+                          'Course': courses[data['Course']],
+                          'Faculty': await getFaculty(data['Faculty'])
+                        });
                       }
                     }
+                    errorFunc(
+                        context, 'Successful read', 'Data is registered.');
                   },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.black,
@@ -442,7 +493,6 @@ class _toggleBox extends State<toggleBox> {
                     child: Text(
                       'No',
                       style: TextStyle(
-                        fontFamily: 'Roboto',
                         fontSize: 14,
                         fontWeight: FontWeight.normal,
                       ),

@@ -1,25 +1,28 @@
-// ignore_for_file: must_be_immutable, library_private_types_in_public_api, empty_catches, non_constant_identifier_names
+// ignore_for_file: must_be_immutable, library_private_types_in_public_api, empty_catches, non_constant_identifier_names, camel_case_types, use_build_context_synchronously
 
+import 'dart:async';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:Monitor/DeanComponents.dart';
 import 'package:flutter/material.dart';
-import 'DeanComponents.dart';
 import 'package:firebase_core/firebase_core.dart';
-import 'DeanApp.dart';
 import 'TeamApp.dart';
-import 'firebase_options.dart';
+import 'DeanApp.dart';
+import 'ConvenerApp.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-
-  // await Firebase.initializeApp(
-  //     options: const FirebaseOptions(
-  //         apiKey: "AIzaSyCUNXZmkskCz4R3ftVd2Neh4Ngmb_EhDyQ",
-  //         appId: "1:293421021076:web:05188c9d726ee773bc8181",
-  //         messagingSenderId: "293421021076",
-  //         projectId: "monitor-bmsce"));
-
   await Firebase.initializeApp(
-    options: DefaultFirebaseOptions.currentPlatform,
-  );
+      options: const FirebaseOptions(
+          apiKey: "AIzaSyCUNXZmkskCz4R3ftVd2Neh4Ngmb_EhDyQ",
+          authDomain: "monitor-bmsce.firebaseapp.com",
+          databaseURL:
+              "https://monitor-bmsce-default-rtdb.asia-southeast1.firebasedatabase.app",
+          projectId: "monitor-bmsce",
+          storageBucket: "monitor-bmsce.appspot.com",
+          messagingSenderId: "293421021076",
+          appId: "1:293421021076:web:05188c9d726ee773bc8181"));
 
   runApp(const MyApp());
 }
@@ -31,86 +34,207 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Flutter Demo',
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(
-            seedColor: const Color.fromARGB(213, 58, 104, 183)),
-        useMaterial3: true,
-      ),
-      home: const HomePage(),
-    );
+        title: 'Monitor BMSCE',
+        theme: ThemeData(
+          colorScheme: ColorScheme.fromSeed(
+              seedColor: const Color.fromARGB(213, 58, 104, 183)),
+          useMaterial3: true,
+        ),
+        home: FutureBuilder(
+            future: moveTo(),
+            builder: ((context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return const Center(
+                    child: SizedBox(
+                  width: 50,
+                  height: 50,
+                  child: CircularProgressIndicator(),
+                ));
+              } else if (snapshot.hasError) {
+                // Show an error message if there's an error
+                return Center(child: Text('Error: ${snapshot.error}'));
+              } else {
+                // Build the widget using the fetched data
+                return Center(child: snapshot.data as Widget);
+              }
+            })));
+    // home: const delete());
   }
 }
 
-class HomePage extends StatelessWidget {
-  const HomePage({super.key});
-  @override
-  Widget build(BuildContext context) {
-    return const Team();
+Future<Widget> moveTo() async {
+  final SharedPreferences prefs = await SharedPreferences.getInstance();
+  bool? login = prefs.getBool('loggedIn');
+  if (login != null && login) {
+    String? access = prefs.getString('access');
+    if (access == '2') {
+      return const Dean();
+    } else if (access == '1') {
+      return const Convener();
+    } else {
+      return const Team();
+    }
+  } else {
+    return const SignInScreen();
   }
 }
 
-class Dean extends StatefulWidget {
-  const Dean({super.key});
+class SignInScreen extends StatefulWidget {
+  const SignInScreen({super.key});
+
   @override
-  _Dean createState() => _Dean();
+  _SignInScreenState createState() => _SignInScreenState();
 }
 
-class _Dean extends State<Dean> {
-  late PageController control;
-  @override
-  void initState() {
-    super.initState();
-    control = PageController(initialPage: navBar.selected);
-  }
-
-  @override
-  void dispose() {
-    control.dispose();
-    super.dispose();
-  }
-
-  void tabSelected(int index) {
-    control.animateToPage(index,
-        duration: const Duration(milliseconds: 500),
-        curve: Curves.fastEaseInToSlowEaseOut);
-  }
-
-  final List<Widget> pages = [
-    const DeanHomePage(),
-    const DeanEditPage(),
-    const Profile()
-  ];
-
+class _SignInScreenState extends State<SignInScreen> {
+  final TextEditingController _emailController = TextEditingController();
+  final TextEditingController _passwordController = TextEditingController();
+  bool _isSigningIn = false;
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text(
-          'Monitor BMSCE',
-          style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
-        ),
-        leading: IconButton(
-            onPressed: () {}, icon: const Icon(Icons.monitor_rounded)),
-        bottom: PreferredSize(
-          preferredSize: const Size.fromHeight(2),
-          child: Container(
-            color: Colors.black,
-            height: 1.5,
-          ),
-        ),
-      ),
-      body: PageView(
-          controller: control,
-          onPageChanged: (int page) {
-            setState(() {
-              navBar.selected = page;
-            });
-          },
-          children: pages),
-      bottomNavigationBar: navBar(
-        tabSelected: tabSelected,
+      body: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: SingleChildScrollView(
+            child: Column(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Center(
+              child: logo(),
+            ),
+            const Padding(
+                padding: EdgeInsets.all(10),
+                child: Text(
+                  'Sign In',
+                  style: TextStyle(
+                      color: Colors.black,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 24),
+                )),
+            Padding(
+                padding: const EdgeInsets.all(10),
+                child: TextField(
+                  controller: _emailController,
+                  decoration: const InputDecoration(
+                    labelText: 'Email',
+                    border: OutlineInputBorder(
+                      borderSide: BorderSide(color: Colors.black, width: 2.0),
+                    ),
+                  ),
+                )),
+            Padding(
+                padding: const EdgeInsets.all(10),
+                child: TextField(
+                  controller: _passwordController,
+                  decoration: const InputDecoration(
+                    labelText: 'Password',
+                    border: OutlineInputBorder(
+                      borderSide: BorderSide(color: Colors.black, width: 2.0),
+                    ),
+                  ),
+                  obscureText: true,
+                )),
+            const SizedBox(height: 20),
+            ElevatedButton(
+              onPressed: _isSigningIn
+                  ? null
+                  : () async {
+                      setState(() {
+                        _isSigningIn = true;
+                      });
+                      String acc = '0';
+                      String code = '';
+                      final FirebaseAuth auth = FirebaseAuth.instance;
+                      try {
+                        await auth.signInWithEmailAndPassword(
+                          email: _emailController.text.trim(),
+                          password: _passwordController.text,
+                        );
+                        QuerySnapshot<Map<String, dynamic>> access_control =
+                            await FirebaseFirestore.instance
+                                .collection('Team')
+                                .where('Email',
+                                    isEqualTo: _emailController.text.trim())
+                                .get();
+                        final SharedPreferences prefs =
+                            await SharedPreferences.getInstance();
+
+                        for (QueryDocumentSnapshot<Map<String, dynamic>> m
+                            in access_control.docs) {
+                          acc = m['access'].toString();
+                          if (acc != '2') {
+                            code = m['Code'];
+                          }
+                        }
+                        prefs.setString('access', acc);
+                        if (acc != '2') {
+                          prefs.setString('id', code);
+                        }
+                        prefs.setBool('loggedIn', true);
+
+                        switch (acc) {
+                          case '2':
+                            Navigator.pushReplacement(
+                              context,
+                              MaterialPageRoute(
+                                  builder: (context) => const Dean()),
+                            );
+                            break;
+                          case '1':
+                            Navigator.pushReplacement(
+                              context,
+                              MaterialPageRoute(
+                                  builder: (context) => const Convener()),
+                            );
+                            break;
+                          case '0':
+                            Navigator.pushReplacement(
+                              context,
+                              MaterialPageRoute(
+                                  builder: (context) => const Team()),
+                            );
+                        }
+                      } on FirebaseAuthException {
+                        errorFunc(context, 'Credentials mismatch',
+                            'Enter valid credentials.');
+                      } catch (e) {
+                        errorFunc(context, 'Error', 'SignIn was not possible.');
+                      } finally {
+                        setState(() {
+                          _isSigningIn = false;
+                        });
+                      }
+                    },
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.black),
+              child: _isSigningIn
+                  ? const CircularProgressIndicator(
+                      valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                    )
+                  : const Text(
+                      'Sign In',
+                      style: TextStyle(color: Colors.white),
+                    ),
+            ),
+          ],
+        )),
       ),
     );
+  }
+}
+
+class delete extends StatelessWidget {
+  const delete({super.key});
+  void work() async {
+    final SharedPreferences s = await SharedPreferences.getInstance();
+    s.remove('access');
+    s.remove('id');
+    s.setBool('loggedIn', false);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    work();
+    return const Text('delete');
   }
 }
