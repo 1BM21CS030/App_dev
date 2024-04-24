@@ -12,7 +12,7 @@ jobs:
       FIREBASE_CLI_EXPERIMENTS: webframeworks
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-flutter@v1
+      - uses: flutter-actions/setup-flutter@v1
         with:
           sdk-version: '3.4.0'
       - run: flutter pub get  # Get dependencies
