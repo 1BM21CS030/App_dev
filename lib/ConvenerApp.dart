@@ -45,7 +45,7 @@ class _Convener extends State<Convener> {
     return Scaffold(
       appBar: AppBar(
         title: const Text(
-          'Monitor BMSCE',
+          'Class Monitoring',
           style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
         ),
         leading: IconButton(

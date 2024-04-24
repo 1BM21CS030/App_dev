@@ -281,7 +281,7 @@ class _Profile extends State<Profile> {
                     final SharedPreferences s =
                         await SharedPreferences.getInstance();
                     s.remove('access');
-                    s.remove('id');
+                    s.remove('name');
                     s.setBool('loggedIn', false);
                     Navigator.push(
                         context,

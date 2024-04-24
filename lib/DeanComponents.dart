@@ -604,7 +604,7 @@ Future<void> parser(BuildContext context, String fileName, Uint8List fileBytes,
         }
       }
       team(context);
-      errorFunc(context, 'Successful read', 'Data has been  registered');
+      errorFunc(context, 'Successful read', 'Data has been registered');
     } catch (e) {
       errorFunc(context, 'Error read', 'Please ensure format of excel sheet.');
     }
@@ -648,7 +648,7 @@ Future<void> parser(BuildContext context, String fileName, Uint8List fileBytes,
           doc.set(data, SetOptions(merge: true));
         }
       }
-      errorFunc(context, 'Successful read', 'Data has been  registered');
+      errorFunc(context, 'Successful read', 'Data has been registered');
     } catch (e) {
       errorFunc(context, 'Error read', 'Please ensure format of excel sheet.');
     }
@@ -722,7 +722,7 @@ Future<void> parser(BuildContext context, String fileName, Uint8List fileBytes,
           }
         }
       }
-      errorFunc(context, 'Successful read', 'Data has been  registered');
+      errorFunc(context, 'Successful read', 'Data has been registered');
     } catch (e) {
       errorFunc(context, 'Error read', 'Please ensure format of excel sheet.');
     }

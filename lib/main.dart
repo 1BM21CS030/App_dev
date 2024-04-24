@@ -34,7 +34,7 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-        title: 'Monitor BMSCE',
+        title: 'Class Monitoring',
         theme: ThemeData(
           colorScheme: ColorScheme.fromSeed(
               seedColor: const Color.fromARGB(213, 58, 104, 183)),
@@ -220,21 +220,5 @@ class _SignInScreenState extends State<SignInScreen> {
         )),
       ),
     );
-  }
-}
-
-class delete extends StatelessWidget {
-  const delete({super.key});
-  void work() async {
-    final SharedPreferences s = await SharedPreferences.getInstance();
-    s.remove('access');
-    s.remove('id');
-    s.setBool('loggedIn', false);
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    work();
-    return const Text('delete');
   }
 }
