@@ -12,7 +12,7 @@ jobs:
       FIREBASE_CLI_EXPERIMENTS: webframeworks
     steps:
       - uses: actions/checkout@v2
-      - uses: cjlapao/setup-flutter@v1
+      - uses: cjlapao/setup-flutter-action@v0.1.6
         with:
           flutter-version: '3.22.0'
       - run: flutter pub get  # Get dependencies
