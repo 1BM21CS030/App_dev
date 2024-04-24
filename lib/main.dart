@@ -65,8 +65,9 @@ class MyApp extends StatelessWidget {
 Future<Widget> moveTo() async {
   final SharedPreferences prefs = await SharedPreferences.getInstance();
   bool? login = prefs.getBool('loggedIn');
-  if (login != null && login) {
-    String? access = prefs.getString('access');
+  String? access = prefs.getString('access');
+
+  if (login != null && login && access != null) {
     if (access == '2') {
       return const Dean();
     } else if (access == '1') {
@@ -143,7 +144,7 @@ class _SignInScreenState extends State<SignInScreen> {
                       setState(() {
                         _isSigningIn = true;
                       });
-                      String acc = '0';
+                      String acc = '';
                       String code = '';
                       final FirebaseAuth auth = FirebaseAuth.instance;
                       try {
@@ -151,25 +152,24 @@ class _SignInScreenState extends State<SignInScreen> {
                           email: _emailController.text.trim(),
                           password: _passwordController.text,
                         );
-                        QuerySnapshot<Map<String, dynamic>> access_control =
+                        DocumentSnapshot<Map<String, dynamic>> access_control =
                             await FirebaseFirestore.instance
                                 .collection('Team')
-                                .where('Email',
-                                    isEqualTo: _emailController.text.trim())
+                                .doc(_emailController.text.trim())
                                 .get();
+
                         final SharedPreferences prefs =
                             await SharedPreferences.getInstance();
 
-                        for (QueryDocumentSnapshot<Map<String, dynamic>> m
-                            in access_control.docs) {
-                          acc = m['access'].toString();
-                          if (acc != '2') {
-                            code = m['Code'];
-                          }
+                        acc = access_control['access'].toString();
+
+                        if (acc != '2') {
+                          code = access_control['Name'];
                         }
+
                         prefs.setString('access', acc);
                         if (acc != '2') {
-                          prefs.setString('id', code);
+                          prefs.setString('name', code);
                         }
                         prefs.setBool('loggedIn', true);
 

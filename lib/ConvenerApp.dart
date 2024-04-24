@@ -95,7 +95,7 @@ class _PublishPage extends State<PublishPage> {
     final SharedPreferences s = await SharedPreferences.getInstance();
     QuerySnapshot doc = await FirebaseFirestore.instance
         .collection('DeptList')
-        .where('Convener', isEqualTo: s.getString('id'))
+        .where('Convener', isEqualTo: s.getString('name'))
         .get();
     QuerySnapshot reps = await FirebaseFirestore.instance
         .collection('Reports')

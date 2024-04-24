@@ -1,5 +1,7 @@
 // ignore_for_file: library_private_types_in_public_api, empty_catches, file_names, non_constant_identifier_names, use_build_context_synchronously
 
+import 'dart:async';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:Monitor/main.dart';
@@ -44,7 +46,7 @@ class _Dean extends State<Dean> {
     return Scaffold(
       appBar: AppBar(
         title: const Text(
-          'Monitor BMSCE',
+          'Class Monitoring',
           style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
         ),
         leading: IconButton(
@@ -80,15 +82,21 @@ class DeanHomePage extends StatefulWidget {
 }
 
 class _DeanHomePage extends State<DeanHomePage> {
-  List<String> reports = [];
-  List<Widget> result = [];
-  ValueNotifier<String> selectedValue =
-      ValueNotifier<String>('All Departments');
   @override
   void initState() {
     super.initState();
     _initializeData();
   }
+
+  @override
+  void dispose() {
+    super.dispose();
+  }
+
+  List<String> reports = [];
+  List<Widget> result = [];
+  ValueNotifier<String> selectedValue =
+      ValueNotifier<String>('All Departments');
 
   Future<void> _initializeData() async {
     reports.add("All Departments");
@@ -102,6 +110,11 @@ class _DeanHomePage extends State<DeanHomePage> {
       QuerySnapshot query =
           await FirebaseFirestore.instance.collection(collection).get();
       for (QueryDocumentSnapshot documentSnapshot in query.docs) {
+        Map<String, dynamic> temp =
+            documentSnapshot.data() as Map<String, dynamic>;
+        if (temp['Convener'] == 'Null') {
+          continue;
+        }
         reports.add(documentSnapshot.id);
       }
     } catch (e) {}
@@ -136,17 +149,17 @@ class _DeanHomePage extends State<DeanHomePage> {
   Widget build(BuildContext context) {
     return Column(crossAxisAlignment: CrossAxisAlignment.center, children: [
       const logo(),
+      const freqReport(),
+      const date(),
+      dropdown(
+          reports: reports,
+          select: 'All Departments',
+          onChanged: onDropdownChanged),
       Expanded(
           child: SingleChildScrollView(
               child: Column(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          const freqReport(),
-          const date(),
-          dropdown(
-              reports: reports,
-              select: 'All Departments',
-              onChanged: onDropdownChanged),
           ValueListenableBuilder<String>(
             valueListenable: selectedValue,
             builder: (context, value, child) {
@@ -176,7 +189,7 @@ class DeanEditPage extends StatelessWidget {
       mainAxisAlignment: MainAxisAlignment.center,
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        uploadBox(title: 'Department List'),
+        uploadBox(title: 'Team List'),
         uploadBox(title: 'Faculty List'),
         uploadBox(title: 'Course List'),
         uploadBox(title: 'Time Table'),

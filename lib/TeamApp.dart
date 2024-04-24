@@ -128,8 +128,8 @@ class _TeamHomePage extends State<TeamHomePage> {
       for (QueryDocumentSnapshot documentSnapshot in query.docs) {
         Map<String, dynamic> data =
             documentSnapshot.data() as Map<String, dynamic>;
-        if (data['Convener'] == s.getString('id') ||
-            data['Members'].contains(s.getString('id'))) {
+        if (data['Convener'] == s.getString('name') ||
+            data['Members'].contains(s.getString('name'))) {
           reports.add(documentSnapshot.id);
         }
       }
@@ -242,6 +242,7 @@ class reportage extends StatefulWidget {
 }
 
 class _reportage extends State<reportage> {
+  bool isUploading = false;
   List<String> classes = [];
   Map<String, int> selectedRooms = {};
   @override
@@ -289,9 +290,9 @@ class _reportage extends State<reportage> {
   Future<void> getClasses() async {
     String day = getDay();
 
-    if (day != 'Sunday' && day != 'Saturday') {
+    if (day != 'Sunday') {
       QuerySnapshot doc = await FirebaseFirestore.instance
-          .collection(widget.dept)
+          .collection(widget.dept.toLowerCase())
           .doc(time)
           .collection(day)
           .get();
@@ -347,8 +348,8 @@ class _reportage extends State<reportage> {
             Expanded(
                 child: GridView.builder(
                     gridDelegate:
-                        const SliverGridDelegateWithFixedCrossAxisCount(
-                      crossAxisCount: 2,
+                        const SliverGridDelegateWithMaxCrossAxisExtent(
+                      maxCrossAxisExtent: 250,
                       crossAxisSpacing: 16,
                       mainAxisSpacing: 16,
                     ),
@@ -363,54 +364,71 @@ class _reportage extends State<reportage> {
                     })),
             Padding(
                 padding: const EdgeInsets.all(16),
-                child: ElevatedButton(
-                  onPressed: () async {
-                    CollectionReference doc =
-                        FirebaseFirestore.instance.collection('Reports');
-                    CollectionReference department = FirebaseFirestore.instance
-                        .collection(widget.dept)
-                        .doc(dropdown.selected)
-                        .collection(getDay());
-                    DocumentSnapshot temp = await FirebaseFirestore.instance
-                        .collection(widget.dept)
-                        .doc('Courses')
-                        .get();
-                    Map<String, dynamic> courses =
-                        temp.data() as Map<String, dynamic>;
+                child: isUploading
+                    ? const CircularProgressIndicator(
+                        valueColor: AlwaysStoppedAnimation<Color>(Colors.black),
+                      )
+                    : ElevatedButton(
+                        onPressed: () async {
+                          setState(() {
+                            isUploading = true;
+                          });
+                          CollectionReference doc =
+                              FirebaseFirestore.instance.collection('Reports');
+                          CollectionReference department = FirebaseFirestore
+                              .instance
+                              .collection(widget.dept.toLowerCase())
+                              .doc(dropdown.selected)
+                              .collection(getDay());
+                          DocumentSnapshot temp = await FirebaseFirestore
+                              .instance
+                              .collection(widget.dept.toLowerCase())
+                              .doc('Courses')
+                              .get();
 
-                    for (var i in selectedRooms.keys) {
-                      if (selectedRooms[i] == 1) {
-                        DocumentSnapshot t = await department.doc(i).get();
-                        Map<String, dynamic> data =
-                            t.data() as Map<String, dynamic>;
+                          Map<String, dynamic> courses =
+                              temp.data() as Map<String, dynamic>;
 
-                        doc
-                            .doc(Timestamp.fromDate(date.selected).toString() +
-                                i +
-                                data['Class'])
-                            .set({
-                          'Department': widget.dept,
-                          'Date': Timestamp.fromDate(date.selected),
-                          'Room': i,
-                          'Time': dropdown.selected,
-                          'Published': false,
-                          'Class': data['Class'],
-                          'Course': courses[data['Course']],
-                          'Faculty': await getFaculty(data['Faculty'])
-                        });
-                      }
-                    }
-                    errorFunc(
-                        context, 'Successful read', 'Data is registered.');
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.black,
-                  ),
-                  child: const Text(
-                    'Submit',
-                    style: TextStyle(color: Colors.white, fontSize: 20),
-                  ),
-                ))
+                          for (var i in selectedRooms.keys) {
+                            if (selectedRooms[i] == 1) {
+                              DocumentSnapshot t =
+                                  await department.doc(i).get();
+
+                              Map<String, dynamic> data =
+                                  t.data() as Map<String, dynamic>;
+
+                              doc
+                                  .doc(date.selected.day.toString() +
+                                      date.selected.month.toString() +
+                                      date.selected.year.toString() +
+                                      i +
+                                      data['Class'])
+                                  .set({
+                                'Department': widget.dept,
+                                'Date': Timestamp.fromDate(date.selected),
+                                'Room': i,
+                                'Time': dropdown.selected,
+                                'Published': false,
+                                'Class': data['Class'],
+                                'Course': courses[data['Course']],
+                                'Faculty': await getFaculty(data['Faculty'])
+                              });
+                            }
+                          }
+                          errorFunc(context, 'Successful read',
+                              'Data is registered.');
+                          setState(() {
+                            isUploading = false;
+                          });
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.black,
+                        ),
+                        child: const Text(
+                          'Submit',
+                          style: TextStyle(color: Colors.white, fontSize: 20),
+                        ),
+                      ))
           ]),
     );
   }

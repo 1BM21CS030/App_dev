@@ -2,14 +2,17 @@
 
 import 'dart:async';
 import 'dart:io';
-import 'dart:typed_data';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:csv/csv.dart';
 import 'package:Monitor/TeamApp.dart';
+import 'package:flutter/foundation.dart';
 import 'package:intl/intl.dart';
 import 'package:excel/excel.dart' as e;
 import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_storage/firebase_storage.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 class logo extends StatelessWidget {
@@ -206,36 +209,38 @@ class _dropdown extends State<dropdown> {
   Widget build(BuildContext context) {
     return Padding(
         padding: const EdgeInsets.all(6),
-        child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-          Container(
-              padding: const EdgeInsets.all(10),
-              height: 45,
-              decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(25),
-                  border: Border.all(color: Colors.black, width: 2)),
-              child: DropdownButton(
-                style: const TextStyle(
-                  color: Colors.black,
-                  fontSize: 18,
-                ),
-                underline: const SizedBox(),
-                icon: const Icon(Icons.arrow_drop_down, color: Colors.black),
-                iconSize: 18,
-                value: dropdown.selected,
-                onChanged: (String? newSel) {
-                  setState(() {
-                    dropdown.selected = newSel!;
-                    widget.onChanged(dropdown.selected);
-                  });
-                },
-                items: widget.reports.map((String option) {
-                  return DropdownMenuItem(
-                    value: option,
-                    child: Text(option),
-                  );
-                }).toList(),
-              ))
-        ]));
+        child: Container(
+            padding: const EdgeInsets.all(10),
+            height: 45,
+            decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(25),
+                border: Border.all(color: Colors.black, width: 2)),
+            child: DropdownButton(
+              isExpanded: true,
+              style: const TextStyle(
+                color: Colors.black,
+                fontSize: 18,
+              ),
+              underline: const SizedBox(),
+              icon: const Icon(Icons.arrow_drop_down, color: Colors.black),
+              iconSize: 18,
+              value: dropdown.selected,
+              onChanged: (String? newSel) {
+                setState(() {
+                  dropdown.selected = newSel!;
+                  widget.onChanged(dropdown.selected);
+                });
+              },
+              items: widget.reports.map((String option) {
+                return DropdownMenuItem(
+                  value: option,
+                  child: Text(
+                    option,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                );
+              }).toList(),
+            )));
   }
 }
 
@@ -257,12 +262,14 @@ class report extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.center,
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Padding(
-                    padding: const EdgeInsets.all(6),
-                    child: Text(
-                      title,
-                      style: const TextStyle(color: Colors.black, fontSize: 18),
-                    )),
+                Expanded(
+                    child: Padding(
+                        padding: const EdgeInsets.all(6),
+                        child: Text(
+                          title,
+                          style: const TextStyle(
+                              color: Colors.black, fontSize: 18),
+                        ))),
                 IconButton(
                     onPressed: () {
                       if (access == 0) {
@@ -426,8 +433,77 @@ Future<void> pickfile(BuildContext context, String title) async {
   }
 }
 
+Future<void> team(BuildContext context) async {
+  List<String> valid_users = [
+    'dean.academic@bmsce.ac.in',
+    'principal@bmsce.ac.in'
+  ];
+  List<String> convener = [];
+  List<String> member = [];
+
+  QuerySnapshot<Map<String, dynamic>> signup = await FirebaseFirestore.instance
+      .collection('DeptList')
+      .where('Faculty')
+      .get();
+
+  for (QueryDocumentSnapshot q in signup.docs) {
+    Map<String, dynamic> temp = q.data() as Map<String, dynamic>;
+    convener.add(temp['Convener'].toString());
+    member.addAll((temp['Members'] as List<dynamic>)
+        .map((item) => item.toString())
+        .toList());
+  }
+  convener = convener.toSet().toList();
+  member = member.toSet().toList();
+
+  try {
+    for (String name in convener) {
+      for (DocumentSnapshot doc in signup.docs) {
+        QuerySnapshot faculty = await doc.reference
+            .collection('Faculty')
+            .where('Name', isEqualTo: name)
+            .get();
+
+        for (DocumentSnapshot email in faculty.docs) {
+          valid_users.add(email.id);
+          Map<String, dynamic> data = email.data() as Map<String, dynamic>;
+          await FirebaseFirestore.instance.collection('Team').doc(email.id).set(
+              {'access': '1', 'Name': data['Name']}, SetOptions(merge: true));
+          _signup(context, email.id);
+        }
+      }
+    }
+    for (String name in member) {
+      for (DocumentSnapshot doc in signup.docs) {
+        QuerySnapshot faculty = await doc.reference
+            .collection('Faculty')
+            .where('Name', isEqualTo: name)
+            .get();
+
+        for (DocumentSnapshot email in faculty.docs) {
+          valid_users.add(email.id);
+          Map<String, dynamic> data = email.data() as Map<String, dynamic>;
+          await FirebaseFirestore.instance.collection('Team').doc(email.id).set(
+              {'access': '0', 'Name': data['Name']}, SetOptions(merge: true));
+          _signup(context, email.id);
+        }
+      }
+    }
+    CollectionReference team = FirebaseFirestore.instance.collection('Team');
+    QuerySnapshot update = await team.get();
+    for (QueryDocumentSnapshot email in update.docs) {
+      if (!valid_users.contains(email.id)) {
+        await team.doc(email.id).delete();
+      }
+    }
+  } catch (e) {
+    errorFunc(context, 'Error', 'Unable to read data from database.');
+  }
+}
+
 Future<void> _signup(BuildContext context, String email) async {
   final FirebaseAuth auth = FirebaseAuth.instance;
+  // print(auth.userChanges());
   try {
     await auth.createUserWithEmailAndPassword(
         email: email, password: '1@BMSCE');
@@ -435,6 +511,39 @@ Future<void> _signup(BuildContext context, String email) async {
     if (e.code == 'email-already-in-use') {}
   } catch (e) {
     errorFunc(context, 'Error', 'Unable to onboard user.');
+  }
+}
+
+String name_format(String str) {
+  str = str.toLowerCase().replaceAll('.', ' ').replaceAll('  ', ' ').trim();
+  String formatted = '';
+  formatted += str[0].toUpperCase();
+  for (int i = 1; i < str.length; i++) {
+    if (str[i - 1] == ' ') {
+      formatted += str[i].toUpperCase();
+    } else {
+      formatted += str[i];
+    }
+  }
+
+  return formatted.replaceAll(' And ', ' and ').replaceAll(' Of ', ' of ');
+}
+
+Future<void> deleteSubCollection(
+    CollectionReference parent, String temp) async {
+  List<String> time = [
+    'Monday',
+    'Tuesday',
+    'Wednesday',
+    'Thursday',
+    'Friday',
+    'Saturday'
+  ];
+  DocumentReference snapshot = parent.doc(temp);
+  for (String t in time) {
+    for (QueryDocumentSnapshot d in (await snapshot.collection(t).get()).docs) {
+      d.reference.delete();
+    }
   }
 }
 
@@ -449,13 +558,12 @@ Future<void> parser(BuildContext context, String fileName, Uint8List fileBytes,
       collName = "DeptList";
       break;
     case "Course List":
-      collName = (fileName.replaceAll(' Courses', '')).trim();
+      collName = (fileName.toLowerCase().replaceAll(' courses', '')).trim();
       break;
     case "Time Table":
-      collName = fileName;
+      collName = fileName.toLowerCase();
       break;
   }
-
   var excel = e.Excel.decodeBytes(fileBytes);
 
   CollectionReference collection =
@@ -472,67 +580,59 @@ Future<void> parser(BuildContext context, String fileName, Uint8List fileBytes,
             rowIndex < excel.tables[table]!.maxRows;
             rowIndex++) {
           var row = excel.tables[table]!.rows[rowIndex];
-          DocumentReference doc = collection.doc(row[0]!.value.toString());
+          if (row[0] == null) {
+            continue;
+          }
+          DocumentReference doc =
+              collection.doc(name_format(row[1]!.value.toString()));
+          List<String> member = [];
+          for (var i = 3; i < excel.tables[table]!.maxColumns; i++) {
+            if (row[i] == null ||
+                (row[i] != null &&
+                    (row[i]?.value == null ||
+                        row[i]?.value.toString() == 'Null'))) {
+              continue;
+            }
+            member.add(name_format(row[i]!.value.toString()));
+          }
 
           await doc.set({
-            'Members': row[2]!.value.toString().split(',').toList(),
-            'Convener': row[1]!.value.toString()
+            'Members': member,
+            'Convener': name_format(row[2]!.value.toString())
           });
         }
       }
+      team(context);
       errorFunc(context, 'Successful read', 'Data has been  registered');
     } catch (e) {
       errorFunc(context, 'Error read', 'Please ensure format of excel sheet.');
     }
   } else if (title == "Faculty List") {
     try {
-      List<String> convener = [];
-      List<String> member = [];
-      QuerySnapshot signup =
-          await FirebaseFirestore.instance.collectionGroup('DeptList').get();
-
-      for (QueryDocumentSnapshot q in signup.docs) {
-        Map<String, dynamic> temp = q.data() as Map<String, dynamic>;
-        convener.add(temp['Convener'].toString());
-        member.addAll((temp['Members'] as List<dynamic>)
-            .map((item) => item.toString())
-            .toList());
-      }
-      convener = convener.toSet().toList();
-      member = member.toSet().toList();
       for (var table in excel.tables.keys) {
         for (var rowIndex = 1;
             rowIndex < excel.tables[table]!.maxRows;
             rowIndex++) {
           var row = excel.tables[table]!.rows[rowIndex];
-          DocumentReference col = collection.doc(row[3]!.value.toString());
-          col.collection('Faculty').doc(row[1]!.value.toString()).set({
-            "Name": row[0]!.value.toString(),
-            'Code': row[2]!.value.toString()
-          });
-          if (convener.contains(row[2]!.value.toString())) {
-            await FirebaseFirestore.instance
-                .collection('Team')
-                .doc(row[1]!.value.toString())
-                .set({'access': 1, 'Code': row[2]!.value.toString()},
-                    SetOptions(merge: true));
-            _signup(context, row[1]!.value.toString());
-          } else if (member.contains(row[2]!.value.toString())) {
-            FirebaseFirestore.instance
-                .collection('Team')
-                .doc(row[1]!.value.toString())
-                .set({'access': 0, 'Code': row[2]!.value.toString()},
-                    SetOptions(merge: true));
-            _signup(context, row[1]!.value.toString());
+          if (row[0] == null) {
+            continue;
           }
+          DocumentReference col =
+              collection.doc(name_format(row[4]!.value.toString()));
+          col.collection('Faculty').doc(row[2]!.value.toString().trim()).set({
+            'Name': name_format(row[1]!.value.toString()),
+            'Code': row[3]!.value.toString().trim()
+          });
         }
       }
-      errorFunc(context, 'Successful read', 'Data has been  registered');
+      team(context);
+      errorFunc(context, 'Successful read', 'Data has been registered');
     } catch (e) {
       errorFunc(context, 'Error read', 'Please ensure format of excel sheet.');
     }
   } else if (title == 'Course List') {
     await collection.doc('Courses').delete();
+
     try {
       DocumentReference doc = collection.doc('Courses');
       for (var table in excel.tables.keys) {
@@ -540,8 +640,9 @@ Future<void> parser(BuildContext context, String fileName, Uint8List fileBytes,
             rowIndex < excel.tables[table]!.maxRows;
             rowIndex++) {
           var row = excel.tables[table]!.rows[rowIndex];
+          if (row[0] == null || row[0]?.value == null) continue;
           Map<String, String> data = {
-            row[0]!.value.toString(): row[1]!.value.toString()
+            row[1]!.value.toString(): row[2]!.value.toString()
           };
           doc.set(data, SetOptions(merge: true));
         }
@@ -551,18 +652,26 @@ Future<void> parser(BuildContext context, String fileName, Uint8List fileBytes,
       errorFunc(context, 'Error read', 'Please ensure format of excel sheet.');
     }
   } else if (title == 'Time Table') {
-    for (QueryDocumentSnapshot q in (await collection.get()).docs) {
+    QuerySnapshot temp = await collection.get();
+
+    for (QueryDocumentSnapshot q in temp.docs) {
       if (q.id.toString() != 'Courses') {
+        await deleteSubCollection(collection, q.id);
+
         await q.reference.delete();
       }
     }
+
     try {
       for (var table in excel.tables.keys) {
         for (var rowIndex = 0;
             rowIndex < excel.tables[table]!.maxRows - 1;
             rowIndex = rowIndex + 8) {
           var row = excel.tables[table]!.rows[rowIndex];
-
+          if (row[0] == null && row[1] == null) {
+            rowIndex -= 7;
+            continue;
+          }
           if (row[0] != null && row[1] != null) {
             String cls = row[0]!.value.toString();
             String room = row[1]!.value.toString();
@@ -570,8 +679,8 @@ Future<void> parser(BuildContext context, String fileName, Uint8List fileBytes,
             for (var i = 1; i < excel.tables[table]!.maxColumns; i++) {
               DocumentReference doc = collection.doc(
                   excel.tables[table]!.rows[rowIndex + 1][i]!.value.toString());
-
-              for (var j = rowIndex + 2; j < rowIndex + 6; j++) {
+              doc.set({'type': 'active'});
+              for (var j = rowIndex + 2; j < rowIndex + 7; j++) {
                 if (excel.tables[table]!.rows[j][i] != null &&
                     excel.tables[table]!.rows[j][i]!.value != null) {
                   var elective = excel.tables[table]!.rows[j][i]!.value
@@ -581,12 +690,12 @@ Future<void> parser(BuildContext context, String fileName, Uint8List fileBytes,
 
                   CollectionReference coll = doc.collection(
                       excel.tables[table]!.rows[j][0]!.value.toString());
+
                   for (var e in elective) {
                     if (e.contains('(') && e.contains(')')) {
                       RegExp regExp =
-                          RegExp(r'([A-Z0-9]+)-([A-Z]+)\(([A-Z0-9]+)\)');
+                          RegExp(r'([A-Z0-9]+)-([A-Z]+)\(([A-Z0-9 ]+)\)');
                       Match? match = regExp.firstMatch(e);
-
                       if (match != null) {
                         coll.doc(match.group(3)!.toString()).set({
                           'Course': match.group(1)!.toString(),
@@ -665,33 +774,46 @@ class _Details extends State<Details> {
   Future<void> getPublish() async {
     List<Widget> reportList = [];
     DateTime d = date.selected;
-    QuerySnapshot reps;
+    QuerySnapshot? reps;
     if (freqReport.freq == 'Weekly') {
       d = date.selected.subtract(const Duration(days: 7));
     } else if (freqReport.freq == 'Monthly') {
       d = date.selected.subtract(const Duration(days: 30));
     }
-    reps = await FirebaseFirestore.instance
-        .collection('Reports')
-        .where('Department', isEqualTo: widget.dept)
-        .where('Date',
-            isGreaterThanOrEqualTo:
-                Timestamp.fromDate(DateTime(d.year, d.month, d.day, 0, 0)))
-        .where('Date',
-            isLessThanOrEqualTo: Timestamp.fromDate(DateTime(date.selected.year,
-                date.selected.month, date.selected.day, 23, 59)))
-        .get();
-    for (QueryDocumentSnapshot q in reps.docs) {
-      Map<String, dynamic> temp = q.data() as Map<String, dynamic>;
-      if (!temp.containsKey('Published')) {
-        Timestamp t = temp['Date'];
-        temp['Date'] = DateFormat('dd-MM-yyyy').format(t.toDate());
-        reportList.add(present(temp));
+
+    try {
+      reps = await FirebaseFirestore.instance
+          .collection('Reports')
+          .where('Department', isEqualTo: widget.dept)
+          .where('Date',
+              isGreaterThanOrEqualTo:
+                  Timestamp.fromDate(DateTime(d.year, d.month, d.day, 0, 0)))
+          .where('Date',
+              isLessThanOrEqualTo: Timestamp.fromDate(DateTime(
+                  date.selected.year,
+                  date.selected.month,
+                  date.selected.day,
+                  23,
+                  59)))
+          .get();
+      for (QueryDocumentSnapshot q in reps.docs) {
+        Map<String, dynamic> temp = q.data() as Map<String, dynamic>;
+        if (!temp.containsKey('Published')) {
+          Timestamp t = temp['Date'];
+          temp['Date'] = DateFormat('dd-MM-yyyy').format(t.toDate());
+          reportList.add(present(temp));
+        }
       }
+      if (reportList.isEmpty) {
+        errorFunc(context, 'No Reports', 'All classes have been handled.');
+      } else {
+        setState(() {
+          report = reportList;
+        });
+      }
+    } catch (e) {
+      errorFunc(context, 'Request Failed', 'Failed to retrive data.');
     }
-    setState(() {
-      report = reportList;
-    });
   }
 
   Widget present(Map<String, dynamic> temp) {
