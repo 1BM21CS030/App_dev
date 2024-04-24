@@ -551,7 +551,7 @@ Future<void> parser(BuildContext context, String fileName, Uint8List fileBytes,
     String title) async {
   var collName = '';
   switch (title) {
-    case "Department List":
+    case "Team List":
       collName = 'DeptList';
       break;
     case "Faculty List":
@@ -569,7 +569,7 @@ Future<void> parser(BuildContext context, String fileName, Uint8List fileBytes,
   CollectionReference collection =
       FirebaseFirestore.instance.collection(collName);
 
-  if (title == 'Department List') {
+  if (title == 'Team List') {
     QuerySnapshot querySnapshot = await collection.get();
     for (DocumentSnapshot documentSnapshot in querySnapshot.docs) {
       await documentSnapshot.reference.delete();
@@ -583,6 +583,7 @@ Future<void> parser(BuildContext context, String fileName, Uint8List fileBytes,
           if (row[0] == null) {
             continue;
           }
+
           DocumentReference doc =
               collection.doc(name_format(row[1]!.value.toString()));
           List<String> member = [];
