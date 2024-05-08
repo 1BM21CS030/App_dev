@@ -1,7 +1,9 @@
 // ignore_for_file: library_private_types_in_public_api, file_names, camel_case_types, use_build_context_synchronously
 
+import 'package:Monitor/main.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:Monitor/TeamApp.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -20,6 +22,17 @@ class _Convener extends State<Convener> {
   void initState() {
     super.initState();
     control = PageController(initialPage: navBar.selected);
+    if (kIsWeb) pageDecider();
+  }
+
+  Widget pageDecider() {
+    if (navBar.selected == 0) {
+      return const TeamHomePage();
+    } else if (navBar.selected == 1) {
+      return const PublishPage();
+    } else {
+      return const Profile();
+    }
   }
 
   @override
@@ -50,6 +63,62 @@ class _Convener extends State<Convener> {
         ),
         leading: IconButton(
             onPressed: () {}, icon: const Icon(Icons.monitor_rounded)),
+        actions: kIsWeb
+            ? [
+                Padding(
+                    padding: const EdgeInsets.all(10),
+                    child: TextButton.icon(
+                        onPressed: () {
+                          setState(() {
+                            navBar.selected = 0;
+                          });
+                        },
+                        label: const Text(
+                          'Home',
+                          style: TextStyle(fontSize: 16, color: Colors.black),
+                        ))),
+                Padding(
+                    padding: const EdgeInsets.all(10),
+                    child: TextButton.icon(
+                        onPressed: () {
+                          setState(() {
+                            navBar.selected = 1;
+                          });
+                        },
+                        label: const Text('Publish',
+                            style:
+                                TextStyle(fontSize: 16, color: Colors.black)))),
+                Padding(
+                    padding: const EdgeInsets.all(10),
+                    child: TextButton.icon(
+                        onPressed: () {
+                          setState(() {
+                            navBar.selected = 2;
+                          });
+                        },
+                        label: const Text('Profile',
+                            style:
+                                TextStyle(fontSize: 16, color: Colors.black)))),
+                Padding(
+                    padding: const EdgeInsets.all(10),
+                    child: TextButton.icon(
+                        onPressed: () async {
+                          final SharedPreferences s =
+                              await SharedPreferences.getInstance();
+                          s.remove('access');
+                          s.remove('name');
+                          s.remove('email');
+                          s.setBool('loggedIn', false);
+                          Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                  builder: (context) => const SignInScreen()));
+                        },
+                        label: const Text('Sign Out',
+                            style:
+                                TextStyle(fontSize: 16, color: Colors.black))))
+              ]
+            : [],
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(2),
           child: Container(
@@ -58,17 +127,21 @@ class _Convener extends State<Convener> {
           ),
         ),
       ),
-      body: PageView(
-          controller: control,
-          onPageChanged: (int page) {
-            setState(() {
-              navBar.selected = page;
-            });
-          },
-          children: pages),
-      bottomNavigationBar: navBar(
-        tabSelected: tabSelected,
-      ),
+      body: kIsWeb
+          ? pageDecider()
+          : PageView(
+              controller: control,
+              onPageChanged: (int page) {
+                setState(() {
+                  navBar.selected = page;
+                });
+              },
+              children: pages),
+      bottomNavigationBar: kIsWeb
+          ? const SizedBox()
+          : navBar(
+              tabSelected: tabSelected,
+            ),
     );
   }
 }
@@ -129,68 +202,78 @@ class _PublishPage extends State<PublishPage> {
                       width: 50,
                       child: CircularProgressIndicator()));
             } else {
-              return Expanded(
-                  child: SingleChildScrollView(
-                      child: Column(children: [
-                ListView.builder(
-                    shrinkWrap: true,
-                    physics: const NeverScrollableScrollPhysics(),
-                    itemCount: report.length,
-                    itemBuilder: (context, index) {
-                      return report[index];
-                    }),
-                Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: ElevatedButton(
-                      onPressed: () async {
-                        setState(() {
-                          _submit = true;
-                        });
-                        try {
-                          for (String i in selectedReports.keys) {
-                            if (selectedReports[i] == 1) {
-                              await FirebaseFirestore.instance
-                                  .collection('Reports')
-                                  .doc(i)
-                                  .delete();
-                            }
-                          }
-                          QuerySnapshot query = await FirebaseFirestore.instance
-                              .collection('Reports')
-                              .where('Published', isEqualTo: false)
-                              .get();
-                          for (QueryDocumentSnapshot q in query.docs) {
-                            await FirebaseFirestore.instance
-                                .collection('Reports')
-                                .doc(q.id)
-                                .update({'Published': FieldValue.delete()});
-                          }
-                        } catch (e) {
-                          errorFunc(context, 'Error', 'Something went wrong.');
-                        } finally {
-                          setState(() {
-                            _submit = false;
-                          });
-                        }
+              return report.isEmpty
+                  ? const Expanded(
+                      child: Center(
+                          child: Text(
+                      'No reports',
+                      style: TextStyle(fontSize: 20, color: Colors.black),
+                    )))
+                  : Expanded(
+                      child: SingleChildScrollView(
+                          child: Column(children: [
+                      ListView.builder(
+                          shrinkWrap: true,
+                          physics: const NeverScrollableScrollPhysics(),
+                          itemCount: report.length,
+                          itemBuilder: (context, index) {
+                            return report[index];
+                          }),
+                      Padding(
+                          padding: const EdgeInsets.all(16),
+                          child: ElevatedButton(
+                            onPressed: () async {
+                              setState(() {
+                                _submit = true;
+                              });
+                              try {
+                                for (String i in selectedReports.keys) {
+                                  if (selectedReports[i] == 1) {
+                                    await FirebaseFirestore.instance
+                                        .collection('Reports')
+                                        .doc(i)
+                                        .delete();
+                                  }
+                                }
+                                QuerySnapshot query = await FirebaseFirestore
+                                    .instance
+                                    .collection('Reports')
+                                    .where('Published', isEqualTo: false)
+                                    .get();
+                                for (QueryDocumentSnapshot q in query.docs) {
+                                  await FirebaseFirestore.instance
+                                      .collection('Reports')
+                                      .doc(q.id)
+                                      .update(
+                                          {'Published': FieldValue.delete()});
+                                }
+                              } catch (e) {
+                                errorFunc(
+                                    context, 'Error', 'Something went wrong.');
+                              } finally {
+                                setState(() {
+                                  _submit = false;
+                                });
+                              }
 
-                        errorFunc(
-                            context, 'Successful read', 'Data is registered.');
-                      },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.black,
-                      ),
-                      child: _submit
-                          ? const CircularProgressIndicator(
-                              valueColor:
-                                  AlwaysStoppedAnimation<Color>(Colors.white),
-                            )
-                          : const Text(
-                              'Submit',
-                              style:
-                                  TextStyle(color: Colors.white, fontSize: 20),
+                              errorFunc(context, 'Successful read',
+                                  'Data is registered.');
+                            },
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.black,
                             ),
-                    ))
-              ])));
+                            child: _submit
+                                ? const CircularProgressIndicator(
+                                    valueColor: AlwaysStoppedAnimation<Color>(
+                                        Colors.white),
+                                  )
+                                : const Text(
+                                    'Submit',
+                                    style: TextStyle(
+                                        color: Colors.white, fontSize: 20),
+                                  ),
+                          ))
+                    ])));
             }
           }),
     ]);

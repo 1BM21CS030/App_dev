@@ -1,10 +1,12 @@
 // ignore_for_file: library_private_types_in_public_api, empty_catches, non_constant_identifier_names, file_names, camel_case_types, must_be_immutable, use_build_context_synchronously
 
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'DeanComponents.dart';
 import 'DeanApp.dart';
+import 'main.dart';
 
 String time = '8:00-8:55';
 String Day = 'Monday';
@@ -21,6 +23,15 @@ class _Team extends State<Team> {
   void initState() {
     super.initState();
     control = PageController(initialPage: navBarTeam.selected);
+    if (kIsWeb) pageDecider();
+  }
+
+  Widget pageDecider() {
+    if (navBar.selected == 0) {
+      return const TeamHomePage();
+    } else {
+      return const Profile();
+    }
   }
 
   @override
@@ -47,6 +58,51 @@ class _Team extends State<Team> {
         ),
         leading: IconButton(
             onPressed: () {}, icon: const Icon(Icons.monitor_rounded)),
+        actions: kIsWeb
+            ? [
+                Padding(
+                    padding: const EdgeInsets.all(10),
+                    child: TextButton.icon(
+                        onPressed: () {
+                          setState(() {
+                            navBar.selected = 0;
+                          });
+                        },
+                        label: const Text(
+                          'Home',
+                          style: TextStyle(fontSize: 16, color: Colors.black),
+                        ))),
+                Padding(
+                    padding: const EdgeInsets.all(10),
+                    child: TextButton.icon(
+                        onPressed: () {
+                          setState(() {
+                            navBar.selected = 1;
+                          });
+                        },
+                        label: const Text('Profile',
+                            style:
+                                TextStyle(fontSize: 16, color: Colors.black)))),
+                Padding(
+                    padding: const EdgeInsets.all(10),
+                    child: TextButton.icon(
+                        onPressed: () async {
+                          final SharedPreferences s =
+                              await SharedPreferences.getInstance();
+                          s.remove('access');
+                          s.remove('name');
+                          s.remove('email');
+                          s.setBool('loggedIn', false);
+                          Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                  builder: (context) => const SignInScreen()));
+                        },
+                        label: const Text('Sign Out',
+                            style:
+                                TextStyle(fontSize: 16, color: Colors.black))))
+              ]
+            : [],
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(2),
           child: Container(
@@ -55,17 +111,21 @@ class _Team extends State<Team> {
           ),
         ),
       ),
-      body: PageView(
-          controller: control,
-          onPageChanged: (int page) {
-            setState(() {
-              navBarTeam.selected = page;
-            });
-          },
-          children: pages),
-      bottomNavigationBar: navBarTeam(
-        tabSelected: tabSelected,
-      ),
+      body: kIsWeb
+          ? pageDecider()
+          : PageView(
+              controller: control,
+              onPageChanged: (int page) {
+                setState(() {
+                  navBarTeam.selected = page;
+                });
+              },
+              children: pages),
+      bottomNavigationBar: kIsWeb
+          ? const SizedBox()
+          : navBarTeam(
+              tabSelected: tabSelected,
+            ),
     );
   }
 }
@@ -243,6 +303,7 @@ class reportage extends StatefulWidget {
 
 class _reportage extends State<reportage> {
   bool isUploading = false;
+  bool isLoaded = false;
   List<String> classes = [];
   Map<String, int> selectedRooms = {};
   @override
@@ -255,7 +316,9 @@ class _reportage extends State<reportage> {
     await getClasses();
 
     if (mounted) {
-      setState(() {});
+      setState(() {
+        isLoaded = true;
+      });
     }
   }
 
@@ -340,96 +403,115 @@ class _reportage extends State<reportage> {
           ),
         ),
       ),
-      body: Column(
-          crossAxisAlignment: CrossAxisAlignment.center,
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const logo(),
-            Expanded(
-                child: GridView.builder(
-                    gridDelegate:
-                        const SliverGridDelegateWithMaxCrossAxisExtent(
-                      maxCrossAxisExtent: 250,
-                      crossAxisSpacing: 16,
-                      mainAxisSpacing: 16,
-                    ),
-                    itemCount: classes.length,
-                    itemBuilder: (context, index) {
-                      return toggleBox(
-                        room: classes[index],
-                        onSelectedChange: (room, index) {
-                          selectedRooms[room] = index;
-                        },
-                      );
-                    })),
-            Padding(
-                padding: const EdgeInsets.all(16),
-                child: isUploading
-                    ? const CircularProgressIndicator(
-                        valueColor: AlwaysStoppedAnimation<Color>(Colors.black),
-                      )
-                    : ElevatedButton(
-                        onPressed: () async {
-                          setState(() {
-                            isUploading = true;
-                          });
-                          CollectionReference doc =
-                              FirebaseFirestore.instance.collection('Reports');
-                          CollectionReference department = FirebaseFirestore
-                              .instance
-                              .collection(widget.dept.toLowerCase())
-                              .doc(dropdown.selected)
-                              .collection(getDay());
-                          DocumentSnapshot temp = await FirebaseFirestore
-                              .instance
-                              .collection(widget.dept.toLowerCase())
-                              .doc('Courses')
-                              .get();
+      body: isLoaded
+          ? Column(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: [
+                  const logo(),
+                  classes.isEmpty
+                      ? const Text(
+                          'No classes',
+                          style: TextStyle(fontSize: 20),
+                        )
+                      : Expanded(
+                          child: GridView.builder(
+                              gridDelegate:
+                                  const SliverGridDelegateWithMaxCrossAxisExtent(
+                                maxCrossAxisExtent: 300,
+                                crossAxisSpacing: 16,
+                                mainAxisSpacing: 16,
+                              ),
+                              itemCount: classes.length,
+                              itemBuilder: (context, index) {
+                                return toggleBox(
+                                  room: classes[index],
+                                  onSelectedChange: (room, index) {
+                                    selectedRooms[room] = index;
+                                  },
+                                );
+                              })),
+                  classes.isEmpty
+                      ? const SizedBox()
+                      : Padding(
+                          padding: const EdgeInsets.all(16),
+                          child: isUploading
+                              ? const CircularProgressIndicator(
+                                  valueColor: AlwaysStoppedAnimation<Color>(
+                                      Colors.black),
+                                )
+                              : ElevatedButton(
+                                  onPressed: () async {
+                                    setState(() {
+                                      isUploading = true;
+                                    });
+                                    CollectionReference doc = FirebaseFirestore
+                                        .instance
+                                        .collection('Reports');
+                                    CollectionReference department =
+                                        FirebaseFirestore.instance
+                                            .collection(
+                                                widget.dept.toLowerCase())
+                                            .doc(dropdown.selected)
+                                            .collection(getDay());
+                                    DocumentSnapshot temp =
+                                        await FirebaseFirestore.instance
+                                            .collection(
+                                                widget.dept.toLowerCase())
+                                            .doc('Courses')
+                                            .get();
 
-                          Map<String, dynamic> courses =
-                              temp.data() as Map<String, dynamic>;
+                                    Map<String, dynamic> courses =
+                                        temp.data() as Map<String, dynamic>;
 
-                          for (var i in selectedRooms.keys) {
-                            if (selectedRooms[i] == 1) {
-                              DocumentSnapshot t =
-                                  await department.doc(i).get();
+                                    for (var i in selectedRooms.keys) {
+                                      if (selectedRooms[i] == 1) {
+                                        DocumentSnapshot t =
+                                            await department.doc(i).get();
 
-                              Map<String, dynamic> data =
-                                  t.data() as Map<String, dynamic>;
+                                        Map<String, dynamic> data =
+                                            t.data() as Map<String, dynamic>;
 
-                              doc
-                                  .doc(date.selected.day.toString() +
-                                      date.selected.month.toString() +
-                                      date.selected.year.toString() +
-                                      i +
-                                      data['Class'])
-                                  .set({
-                                'Department': widget.dept,
-                                'Date': Timestamp.fromDate(date.selected),
-                                'Room': i,
-                                'Time': dropdown.selected,
-                                'Published': false,
-                                'Class': data['Class'],
-                                'Course': courses[data['Course']],
-                                'Faculty': await getFaculty(data['Faculty'])
-                              });
-                            }
-                          }
-                          errorFunc(context, 'Successful read',
-                              'Data is registered.');
-                          setState(() {
-                            isUploading = false;
-                          });
-                        },
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.black,
-                        ),
-                        child: const Text(
-                          'Submit',
-                          style: TextStyle(color: Colors.white, fontSize: 20),
-                        ),
-                      ))
-          ]),
+                                        doc
+                                            .doc(date.selected.day.toString() +
+                                                date.selected.month.toString() +
+                                                date.selected.year.toString() +
+                                                i +
+                                                data['Class'])
+                                            .set({
+                                          'Department': widget.dept,
+                                          'Date':
+                                              Timestamp.fromDate(date.selected),
+                                          'Room': i,
+                                          'Time': dropdown.selected,
+                                          'Published': false,
+                                          'Class': data['Class'],
+                                          'Course': courses[data['Course']],
+                                          'Faculty':
+                                              await getFaculty(data['Faculty'])
+                                        });
+                                      }
+                                    }
+                                    errorFunc(context, 'Successful read',
+                                        'Data is registered.');
+                                    setState(() {
+                                      isUploading = false;
+                                    });
+                                  },
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: Colors.black,
+                                  ),
+                                  child: const Text(
+                                    'Submit',
+                                    style: TextStyle(
+                                        color: Colors.white, fontSize: 20),
+                                  ),
+                                ))
+                ])
+          : const Center(
+              child: CircularProgressIndicator(
+              valueColor: AlwaysStoppedAnimation<Color>(Colors.black),
+            )),
     );
   }
 }

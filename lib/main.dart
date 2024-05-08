@@ -163,14 +163,13 @@ class _SignInScreenState extends State<SignInScreen> {
 
                         acc = access_control['access'].toString();
 
-                        if (acc != '2') {
-                          code = access_control['Name'];
-                        }
+                        code = access_control['Name'];
 
                         prefs.setString('access', acc);
-                        if (acc != '2') {
-                          prefs.setString('name', code);
-                        }
+
+                        prefs.setString('name', code);
+
+                        prefs.setString('email', _emailController.text.trim());
                         prefs.setBool('loggedIn', true);
 
                         switch (acc) {

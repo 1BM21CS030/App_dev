@@ -106,7 +106,27 @@ class _freqReport extends State<freqReport> {
                       style: TextStyle(
                           color: selected == 2 ? Colors.black : Colors.white,
                           fontSize: 18),
-                    )))
+                    ))),
+            kIsWeb
+                ? Expanded(
+                    child: ElevatedButton(
+                        onPressed: () {
+                          setState(() {
+                            selected = 3;
+                            freqReport.freq = 'Quaterly';
+                          });
+                        },
+                        style: ElevatedButton.styleFrom(
+                            backgroundColor:
+                                selected == 3 ? Colors.white : Colors.black),
+                        child: Text(
+                          'Quaterly',
+                          style: TextStyle(
+                              color:
+                                  selected == 3 ? Colors.black : Colors.white,
+                              fontSize: 18),
+                        )))
+                : const Text('')
           ]),
         ));
   }
@@ -263,13 +283,29 @@ class report extends StatelessWidget {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Expanded(
-                    child: Padding(
-                        padding: const EdgeInsets.all(6),
-                        child: Text(
-                          title,
-                          style: const TextStyle(
-                              color: Colors.black, fontSize: 18),
-                        ))),
+                    child: GestureDetector(
+                        onTap: () {
+                          if (access == 0) {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                  builder: (context) => Details(dept: title)),
+                            );
+                          } else {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                  builder: (context) => reportage(dept: title)),
+                            );
+                          }
+                        },
+                        child: Padding(
+                            padding: const EdgeInsets.all(6),
+                            child: Text(
+                              title,
+                              style: const TextStyle(
+                                  color: Colors.black, fontSize: 18),
+                            )))),
                 IconButton(
                     onPressed: () {
                       if (access == 0) {
@@ -409,7 +445,7 @@ class _uploadBox extends State<uploadBox> {
                               style:
                                   TextStyle(fontSize: 17, color: Colors.white),
                             )))
-              ])
+              ]),
             ],
           ),
         ));
@@ -503,7 +539,7 @@ Future<void> team(BuildContext context) async {
 
 Future<void> _signup(BuildContext context, String email) async {
   final FirebaseAuth auth = FirebaseAuth.instance;
-  // print(auth.userChanges());
+
   try {
     await auth.createUserWithEmailAndPassword(
         email: email, password: '1@BMSCE');
@@ -780,6 +816,8 @@ class _Details extends State<Details> {
       d = date.selected.subtract(const Duration(days: 7));
     } else if (freqReport.freq == 'Monthly') {
       d = date.selected.subtract(const Duration(days: 30));
+    } else if (freqReport.freq == 'Quaterly') {
+      d = date.selected.subtract(const Duration(days: 90));
     }
 
     try {
@@ -796,6 +834,7 @@ class _Details extends State<Details> {
                   date.selected.day,
                   23,
                   59)))
+          .orderBy('Date', descending: true)
           .get();
       for (QueryDocumentSnapshot q in reps.docs) {
         Map<String, dynamic> temp = q.data() as Map<String, dynamic>;
@@ -805,13 +844,10 @@ class _Details extends State<Details> {
           reportList.add(present(temp));
         }
       }
-      if (reportList.isEmpty) {
-        errorFunc(context, 'No Reports', 'All classes have been handled.');
-      } else {
-        setState(() {
-          report = reportList;
-        });
-      }
+
+      setState(() {
+        report = reportList;
+      });
     } catch (e) {
       errorFunc(context, 'Request Failed', 'Failed to retrive data.');
     }
@@ -908,17 +944,24 @@ class _Details extends State<Details> {
                           width: 50,
                           child: CircularProgressIndicator()));
                 } else {
-                  return Expanded(
-                      child: SingleChildScrollView(
-                          child: Column(children: [
-                    ListView.builder(
-                        shrinkWrap: true,
-                        physics: const NeverScrollableScrollPhysics(),
-                        itemCount: report.length,
-                        itemBuilder: (context, index) {
-                          return report[index];
-                        })
-                  ])));
+                  return report.isEmpty
+                      ? const Expanded(
+                          child: Center(
+                              child: Text(
+                          'No reports.\nAll classes have been handled.',
+                          style: TextStyle(color: Colors.black, fontSize: 20),
+                        )))
+                      : Expanded(
+                          child: SingleChildScrollView(
+                              child: Column(children: [
+                          ListView.builder(
+                              shrinkWrap: true,
+                              physics: const NeverScrollableScrollPhysics(),
+                              itemCount: report.length,
+                              itemBuilder: (context, index) {
+                                return report[index];
+                              })
+                        ])));
                 }
               })
         ]));
