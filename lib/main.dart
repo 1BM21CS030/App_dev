@@ -91,6 +91,8 @@ class _SignInScreenState extends State<SignInScreen> {
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
   bool _isSigningIn = false;
+  final _firstFocus = FocusNode();
+  final _secondFocus = FocusNode();
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -116,6 +118,10 @@ class _SignInScreenState extends State<SignInScreen> {
             Padding(
                 padding: const EdgeInsets.all(10),
                 child: TextField(
+                  focusNode: _firstFocus,
+                  onSubmitted: (_) {
+                    FocusScope.of(context).requestFocus(_secondFocus);
+                  },
                   controller: _emailController,
                   decoration: const InputDecoration(
                     labelText: 'Email',
@@ -127,6 +133,72 @@ class _SignInScreenState extends State<SignInScreen> {
             Padding(
                 padding: const EdgeInsets.all(10),
                 child: TextField(
+                  focusNode: _secondFocus,
+                  onSubmitted: (_) async {
+                    setState(() {
+                      _isSigningIn = true;
+                    });
+                    String acc = '';
+                    String code = '';
+                    final FirebaseAuth auth = FirebaseAuth.instance;
+                    try {
+                      await auth.signInWithEmailAndPassword(
+                        email: _emailController.text.trim(),
+                        password: _passwordController.text,
+                      );
+                      DocumentSnapshot<Map<String, dynamic>> access_control =
+                          await FirebaseFirestore.instance
+                              .collection('Team')
+                              .doc(_emailController.text.trim())
+                              .get();
+
+                      final SharedPreferences prefs =
+                          await SharedPreferences.getInstance();
+
+                      acc = access_control['access'].toString();
+
+                      code = access_control['Name'];
+
+                      prefs.setString('access', acc);
+
+                      prefs.setString('name', code);
+
+                      prefs.setString('email', _emailController.text.trim());
+                      prefs.setBool('loggedIn', true);
+
+                      switch (acc) {
+                        case '2':
+                          Navigator.pushReplacement(
+                            context,
+                            MaterialPageRoute(
+                                builder: (context) => const Dean()),
+                          );
+                          break;
+                        case '1':
+                          Navigator.pushReplacement(
+                            context,
+                            MaterialPageRoute(
+                                builder: (context) => const Convener()),
+                          );
+                          break;
+                        case '0':
+                          Navigator.pushReplacement(
+                            context,
+                            MaterialPageRoute(
+                                builder: (context) => const Team()),
+                          );
+                      }
+                    } on FirebaseAuthException {
+                      errorFunc(context, 'Credentials mismatch',
+                          'Enter valid credentials.');
+                    } catch (e) {
+                      errorFunc(context, 'Error', 'SignIn was not possible.');
+                    } finally {
+                      setState(() {
+                        _isSigningIn = false;
+                      });
+                    }
+                  },
                   controller: _passwordController,
                   decoration: const InputDecoration(
                     labelText: 'Password',

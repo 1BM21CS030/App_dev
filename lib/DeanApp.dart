@@ -228,7 +228,15 @@ class _DeanHomePage extends State<DeanHomePage> {
   Future<void> download() async {
     final workbook = xls.Workbook();
     final worksheet = workbook.worksheets[0];
-    List<String> keys = ['Date', 'Time', 'Class', 'Faculty', 'Course', 'Room'];
+    List<String> keys = [
+      'Date',
+      'Department',
+      'Time',
+      'Class',
+      'Faculty',
+      'Course',
+      'Room'
+    ];
     for (int i = 1; i < keys.length + 1; i++) {
       worksheet.getRangeByIndex(1, i).setText(keys[i - 1]);
     }

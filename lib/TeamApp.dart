@@ -369,13 +369,13 @@ class _reportage extends State<reportage> {
     String ans = '';
     QuerySnapshot s =
         await FirebaseFirestore.instance.collection('DeptList').get();
-    final SharedPreferences sp = await SharedPreferences.getInstance();
+
     for (QueryDocumentSnapshot q in s.docs) {
       QuerySnapshot c = await FirebaseFirestore.instance
           .collection('DeptList')
           .doc(q.id)
           .collection('Faculty')
-          .where('Code', isEqualTo: sp.getString('id'))
+          .where('Code', isEqualTo: code)
           .get();
       for (QueryDocumentSnapshot d in c.docs) {
         Map<String, dynamic> temp = d.data() as Map<String, dynamic>;
