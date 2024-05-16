@@ -304,7 +304,7 @@ class reportage extends StatefulWidget {
 class _reportage extends State<reportage> {
   bool isUploading = false;
   bool isLoaded = false;
-  List<String> classes = [];
+  Map<String, String> classes = {};
   Map<String, int> selectedRooms = {};
   @override
   void initState() {
@@ -360,7 +360,8 @@ class _reportage extends State<reportage> {
           .collection(day)
           .get();
       for (QueryDocumentSnapshot d in doc.docs) {
-        classes.add((d.id.toString()));
+        Map<String, dynamic> temp = d.data() as Map<String, dynamic>;
+        classes[d.id.toString()] = temp['Class'];
       }
     }
   }
@@ -409,6 +410,28 @@ class _reportage extends State<reportage> {
               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
               children: [
                   const logo(),
+                  Padding(
+                      padding: const EdgeInsets.all(10),
+                      child: Container(
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(color: Colors.black, width: 2),
+                          ),
+                          child: Material(
+                            elevation: 2,
+                            color: Colors.white,
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 16, vertical: 12),
+                              child: Text(
+                                widget.dept,
+                                style: const TextStyle(
+                                  fontSize: 16,
+                                  color: Colors.black,
+                                ),
+                              ),
+                            ),
+                          ))),
                   classes.isEmpty
                       ? const Text(
                           'No classes',
@@ -425,7 +448,8 @@ class _reportage extends State<reportage> {
                               itemCount: classes.length,
                               itemBuilder: (context, index) {
                                 return toggleBox(
-                                  room: classes[index],
+                                  room: classes.keys.toList()[index],
+                                  cls: classes[classes.keys.toList()[index]]!,
                                   onSelectedChange: (room, index) {
                                     selectedRooms[room] = index;
                                   },
@@ -518,9 +542,13 @@ class _reportage extends State<reportage> {
 
 class toggleBox extends StatefulWidget {
   final String room;
+  final String cls;
   final Function(String room, int selected) onSelectedChange;
   const toggleBox(
-      {super.key, required this.room, required this.onSelectedChange});
+      {super.key,
+      required this.room,
+      required this.onSelectedChange,
+      required this.cls});
   @override
   _toggleBox createState() => _toggleBox();
 }
@@ -560,6 +588,16 @@ class _toggleBox extends State<toggleBox> {
                     color: Colors.black,
                     fontSize: 22,
                     fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+              SizedBox(
+                height: 50,
+                child: Text(
+                  widget.cls,
+                  style: const TextStyle(
+                    color: Colors.black,
+                    fontSize: 16,
                   ),
                 ),
               ),

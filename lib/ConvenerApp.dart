@@ -268,7 +268,7 @@ class _PublishPage extends State<PublishPage> {
                                         Colors.white),
                                   )
                                 : const Text(
-                                    'Submit',
+                                    'Publish',
                                     style: TextStyle(
                                         color: Colors.white, fontSize: 20),
                                   ),
@@ -376,7 +376,7 @@ class _publishBox extends State<publishBox> {
                   Padding(
                     padding: EdgeInsets.symmetric(horizontal: 16.0),
                     child: Text(
-                      'Yes',
+                      'Publish',
                       style: TextStyle(
                         fontSize: 14,
                         fontWeight: FontWeight.normal,
@@ -386,7 +386,7 @@ class _publishBox extends State<publishBox> {
                   Padding(
                     padding: EdgeInsets.symmetric(horizontal: 16.0),
                     child: Text(
-                      'No',
+                      'Discard',
                       style: TextStyle(
                         fontSize: 14,
                         fontWeight: FontWeight.normal,

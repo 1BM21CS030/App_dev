@@ -2,6 +2,7 @@
 
 import 'dart:async';
 import 'dart:io';
+import 'package:file_saver/file_saver.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:csv/csv.dart';
 import 'package:Monitor/TeamApp.dart';
@@ -14,6 +15,8 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:syncfusion_flutter_xlsio/xlsio.dart' as xls;
 
 class logo extends StatelessWidget {
   const logo({super.key});
@@ -444,11 +447,145 @@ class _uploadBox extends State<uploadBox> {
                               'Upload',
                               style:
                                   TextStyle(fontSize: 17, color: Colors.white),
-                            )))
+                            ))),
+                Padding(
+                    padding: const EdgeInsets.all(6),
+                    child: ElevatedButton(
+                        onPressed: () async {
+                          formatDownload(widget.title);
+                        },
+                        style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.black),
+                        child: const Text(
+                          'Download',
+                          style: TextStyle(fontSize: 17, color: Colors.white),
+                        )))
               ]),
             ],
           ),
         ));
+  }
+
+  Future<void> formatDownload(String title) async {
+    final SharedPreferences prefs = await SharedPreferences.getInstance();
+    final workbook = xls.Workbook();
+    final worksheet = workbook.worksheets[0];
+    switch (title) {
+      case 'Faculty List':
+        List keys = ['Serial No', 'Name', 'Email', 'Code'];
+        for (int i = 1; i < keys.length + 1; i++) {
+          worksheet.getRangeByIndex(1, i).setText(keys[i - 1]);
+        }
+
+        QuerySnapshot faculty = await FirebaseFirestore.instance
+            .collection('DeptList')
+            .doc(name_format(prefs.getString('name')!))
+            .collection('Faculty')
+            .get();
+        int row = 2;
+        for (QueryDocumentSnapshot doc in faculty.docs) {
+          Map<String, dynamic> temp = doc.data() as Map<String, dynamic>;
+
+          worksheet.getRangeByIndex(row, 1).setNumber(row - 1 as double?);
+          worksheet.getRangeByIndex(row, 2).setText(temp['Name']);
+          worksheet.getRangeByIndex(row, 3).setText(doc.id);
+          worksheet.getRangeByIndex(row, 4).setText(temp['Code']);
+          row++;
+        }
+        break;
+      case 'Course List':
+        List keys = ['Serial No', 'Course Code', 'Course Name'];
+        for (int i = 1; i < keys.length + 1; i++) {
+          worksheet.getRangeByIndex(1, i).setText(keys[i - 1]);
+        }
+        break;
+      case 'Time Table':
+        List days = [
+          'Monday',
+          'Tuesday',
+          'Wednesday',
+          'Thursday',
+          'Friday',
+          'Saturday'
+        ];
+        List times = [
+          '8:00-8:55',
+          '8:55-9:50',
+          '9:50-10:45',
+          '11:15-12:10',
+          '12:10-1:05',
+          '2:00-2:55',
+          '2:55-3:50'
+        ];
+        int row = 1;
+
+        for (int i = 0; i < 20; i++) {
+          worksheet.getRangeByIndex(row, 1).setText('<Class>');
+          worksheet.getRangeByIndex(row, 2).setText('<Class Room>');
+          row++;
+          for (int column = 2; column < times.length + 2; column++) {
+            worksheet.getRangeByIndex(row, column).setText(times[column - 2]);
+          }
+          row++;
+          days.forEach((day) {
+            worksheet.getRangeByIndex(row, 1).setText(day);
+            row++;
+          });
+          row++;
+        }
+        break;
+      case 'Team List':
+        List keys = [
+          'Serial No',
+          'Department',
+          'Point of Contact',
+          'Convener',
+          'Team Member',
+          'Team Member',
+          'Team Member',
+          'Team Member',
+          'Team Member'
+        ];
+        for (int i = 1; i < keys.length + 1; i++) {
+          worksheet.getRangeByIndex(1, i).setText(keys[i - 1]);
+        }
+        QuerySnapshot temp =
+            await FirebaseFirestore.instance.collection('DeptList').get();
+        int row = 2;
+        for (QueryDocumentSnapshot doc in temp.docs) {
+          Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
+          worksheet.getRangeByIndex(row, 1).setNumber(row - 1 as double?);
+          worksheet.getRangeByIndex(row, 2).setText(doc.id);
+          worksheet.getRangeByIndex(row, 3).setText(data['Contact']);
+          worksheet.getRangeByIndex(row, 4).setText(data['Convener']);
+          int col = 5;
+          doc['Members'].forEach((member) {
+            worksheet.getRangeByIndex(row, col).setText(member);
+            col++;
+          });
+          row++;
+        }
+        break;
+    }
+    final bytes = workbook.saveAsStream();
+    if (kIsWeb) {
+      await FileSaver.instance.saveFile(
+        name: '${title}_${prefs.getString('name')}.xlsx',
+        mimeType: MimeType.microsoftExcel,
+        bytes: Uint8List.fromList(bytes),
+      );
+    } else {
+      final directory = await FilePicker.platform.getDirectoryPath();
+      if (directory == null) {
+        errorFunc(context, 'Invalid Folder',
+            'Unable to access folder to download file.');
+      } else {
+        final path = '$directory/${title}_${prefs.getString('name')}.xlsx';
+        final file = File(path);
+
+        await file.writeAsBytes(bytes);
+      }
+    }
   }
 }
 
@@ -476,6 +613,19 @@ Future<void> team(BuildContext context) async {
   ];
   List<String> convener = [];
   List<String> member = [];
+
+  await FirebaseFirestore.instance
+      .collection('Team')
+      .doc('dean.academic@bmsce.ac.in')
+      .set(
+          {'access': '2', 'Name': 'Dean of Academic'}, SetOptions(merge: true));
+  _signup(context, 'dean.academic@bmsce.ac.in');
+
+  await FirebaseFirestore.instance
+      .collection('Team')
+      .doc('principal@bmsce.ac.in')
+      .set({'access': '2', 'Name': 'Principal'}, SetOptions(merge: true));
+  _signup(context, 'principal@bmsce.ac.in');
 
   QuerySnapshot<Map<String, dynamic>> signup = await FirebaseFirestore.instance
       .collection('DeptList')
@@ -528,7 +678,7 @@ Future<void> team(BuildContext context) async {
     CollectionReference team = FirebaseFirestore.instance.collection('Team');
     QuerySnapshot update = await team.get();
     for (QueryDocumentSnapshot email in update.docs) {
-      if (!valid_users.contains(email.id)) {
+      if (!valid_users.contains(email.id) && email['access'] != '3') {
         await team.doc(email.id).delete();
       }
     }
@@ -586,6 +736,7 @@ Future<void> deleteSubCollection(
 Future<void> parser(BuildContext context, String fileName, Uint8List fileBytes,
     String title) async {
   var collName = '';
+  final SharedPreferences prefs = await SharedPreferences.getInstance();
   switch (title) {
     case "Team List":
       collName = 'DeptList';
@@ -594,10 +745,10 @@ Future<void> parser(BuildContext context, String fileName, Uint8List fileBytes,
       collName = "DeptList";
       break;
     case "Course List":
-      collName = (fileName.toLowerCase().replaceAll(' courses', '')).trim();
+      collName = prefs.getString('name')!;
       break;
     case "Time Table":
-      collName = fileName.toLowerCase();
+      collName = prefs.getString('name')!;
       break;
   }
   var excel = e.Excel.decodeBytes(fileBytes);
@@ -616,36 +767,63 @@ Future<void> parser(BuildContext context, String fileName, Uint8List fileBytes,
             rowIndex < excel.tables[table]!.maxRows;
             rowIndex++) {
           var row = excel.tables[table]!.rows[rowIndex];
-          if (row[0] == null) {
+
+          if ((row[0] == null || row[0]!.value == null) &&
+              (row[1] == null || row[1]!.value == null) &&
+              (row[2] == null || row[2]!.value == null)) {
             continue;
           }
 
           DocumentReference doc =
               collection.doc(name_format(row[1]!.value.toString()));
+
           List<String> member = [];
-          for (var i = 3; i < excel.tables[table]!.maxColumns; i++) {
-            if (row[i] == null ||
+          for (var i = 4; i < excel.tables[table]!.maxColumns; i++) {
+            if (row[3] == null ||
+                row[i] == null ||
                 (row[i] != null &&
                     (row[i]?.value == null ||
                         row[i]?.value.toString() == 'Null'))) {
               continue;
             }
+
             member.add(name_format(row[i]!.value.toString()));
           }
 
+          await FirebaseFirestore.instance
+              .collection('Team')
+              .doc(row[2]!.value.toString().trim())
+              .set({
+            'access': '3',
+            'Name': row[1]!.value.toString().trim().toLowerCase()
+          }, SetOptions(merge: true));
+          _signup(context, row[2]!.value.toString().trim());
+
           await doc.set({
             'Members': member,
-            'Convener': name_format(row[2]!.value.toString())
+            'Convener': row[3] == null || row[3]!.value == null
+                ? null
+                : name_format(row[3]!.value.toString()),
+            'Contact': row[2]!.value.toString()
           });
         }
       }
       team(context);
+
       errorFunc(context, 'Successful read', 'Data has been registered');
     } catch (e) {
       errorFunc(context, 'Error read', 'Please ensure format of excel sheet.');
     }
   } else if (title == "Faculty List") {
     try {
+      DocumentReference col =
+          collection.doc(name_format(prefs.getString('name')!));
+      QuerySnapshot faculty = await col.collection('Faculty').get();
+
+      faculty.docs.forEach((doc) async {
+        await doc.reference.delete();
+      });
+      await col.collection('Faculty').doc().delete();
       for (var table in excel.tables.keys) {
         for (var rowIndex = 1;
             rowIndex < excel.tables[table]!.maxRows;
@@ -654,8 +832,7 @@ Future<void> parser(BuildContext context, String fileName, Uint8List fileBytes,
           if (row[0] == null) {
             continue;
           }
-          DocumentReference col =
-              collection.doc(name_format(row[4]!.value.toString()));
+
           col.collection('Faculty').doc(row[2]!.value.toString().trim()).set({
             'Name': name_format(row[1]!.value.toString()),
             'Code': row[3]!.value.toString().trim()
@@ -709,7 +886,10 @@ Future<void> parser(BuildContext context, String fileName, Uint8List fileBytes,
             rowIndex -= 7;
             continue;
           }
-          if (row[0] != null && row[1] != null) {
+          if (((row[0] != null || row[0]!.value == null) &&
+                  (row[1] != null || row[1]!.value == null)) ||
+              (row[0]!.value.toString() == '<Class>' ||
+                  row[1]!.value.toString() == '<Class Room>')) {
             String cls = row[0]!.value.toString();
             String room = row[1]!.value.toString();
 

@@ -1,6 +1,7 @@
 // ignore_for_file: must_be_immutable, library_private_types_in_public_api, empty_catches, non_constant_identifier_names, camel_case_types, use_build_context_synchronously
 
 import 'dart:async';
+import 'package:Monitor/Department.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:Monitor/DeanComponents.dart';
 import 'package:flutter/material.dart';
@@ -72,6 +73,8 @@ Future<Widget> moveTo() async {
       return const Dean();
     } else if (access == '1') {
       return const Convener();
+    } else if (access == '3') {
+      return const Department();
     } else {
       return const Team();
     }
@@ -187,6 +190,12 @@ class _SignInScreenState extends State<SignInScreen> {
                             MaterialPageRoute(
                                 builder: (context) => const Team()),
                           );
+                        case '3':
+                          Navigator.pushReplacement(
+                            context,
+                            MaterialPageRoute(
+                                builder: (context) => const Department()),
+                          );
                       }
                     } on FirebaseAuthException {
                       errorFunc(context, 'Credentials mismatch',
@@ -264,6 +273,12 @@ class _SignInScreenState extends State<SignInScreen> {
                               context,
                               MaterialPageRoute(
                                   builder: (context) => const Team()),
+                            );
+                          case '3':
+                            Navigator.pushReplacement(
+                              context,
+                              MaterialPageRoute(
+                                  builder: (context) => const Department()),
                             );
                         }
                       } on FirebaseAuthException {

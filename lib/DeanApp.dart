@@ -192,7 +192,7 @@ class _DeanHomePage extends State<DeanHomePage> {
       for (QueryDocumentSnapshot documentSnapshot in query.docs) {
         Map<String, dynamic> temp =
             documentSnapshot.data() as Map<String, dynamic>;
-        if (temp['Convener'] == 'Null') {
+        if (temp['Convener'] == null) {
           continue;
         }
         reports.add(documentSnapshot.id);
@@ -355,10 +355,8 @@ class DeanEditPage extends StatelessWidget {
       mainAxisAlignment: MainAxisAlignment.center,
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
+        logo(),
         uploadBox(title: 'Team List'),
-        uploadBox(title: 'Faculty List'),
-        uploadBox(title: 'Course List'),
-        uploadBox(title: 'Time Table'),
       ],
     ));
   }
@@ -379,7 +377,7 @@ class _Profile extends State<Profile> {
 
   Future<void> getData() async {
     SharedPreferences s = await SharedPreferences.getInstance();
-    name = s.getString('name') as String;
+    name = name_format(s.getString('name') as String);
     email = s.getString('email') as String;
   }
 
