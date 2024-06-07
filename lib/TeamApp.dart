@@ -581,7 +581,7 @@ class _toggleBox extends State<toggleBox> {
             mainAxisSize: MainAxisSize.min,
             children: <Widget>[
               SizedBox(
-                height: 50,
+                height: 25,
                 child: Text(
                   widget.room,
                   style: const TextStyle(

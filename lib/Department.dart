@@ -1,3 +1,5 @@
+// ignore_for_file: library_private_types_in_public_api, file_names
+
 import 'package:Monitor/DeanApp.dart';
 import 'package:Monitor/TeamApp.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
@@ -89,6 +91,7 @@ class _Department extends State<Department> {
                           s.remove('email');
                           s.setBool('loggedIn', false);
                           Navigator.push(
+                              // ignore: use_build_context_synchronously
                               context,
                               MaterialPageRoute(
                                   builder: (context) => const SignInScreen()));

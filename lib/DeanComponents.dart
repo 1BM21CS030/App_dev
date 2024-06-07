@@ -527,10 +527,10 @@ class _uploadBox extends State<uploadBox> {
             worksheet.getRangeByIndex(row, column).setText(times[column - 2]);
           }
           row++;
-          days.forEach((day) {
+          for (var day in days) {
             worksheet.getRangeByIndex(row, 1).setText(day);
             row++;
-          });
+          }
           row++;
         }
         break;
@@ -820,6 +820,7 @@ Future<void> parser(BuildContext context, String fileName, Uint8List fileBytes,
           collection.doc(name_format(prefs.getString('name')!));
       QuerySnapshot faculty = await col.collection('Faculty').get();
 
+      // ignore: avoid_function_literals_in_foreach_calls
       faculty.docs.forEach((doc) async {
         await doc.reference.delete();
       });
