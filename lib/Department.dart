@@ -138,7 +138,8 @@ class DeptHomePage extends StatefulWidget {
 class _DeptHomePage extends State<DeptHomePage> {
   @override
   Widget build(BuildContext context) {
-    return const Column(
+    return const SingleChildScrollView(
+        child: Column(
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
         logo(),
@@ -146,6 +147,6 @@ class _DeptHomePage extends State<DeptHomePage> {
         uploadBox(title: 'Course List'),
         uploadBox(title: 'Time Table'),
       ],
-    );
+    ));
   }
 }

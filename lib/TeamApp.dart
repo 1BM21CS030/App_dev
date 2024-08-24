@@ -1,6 +1,7 @@
 // ignore_for_file: library_private_types_in_public_api, empty_catches, non_constant_identifier_names, file_names, camel_case_types, must_be_immutable, use_build_context_synchronously
 
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -150,7 +151,7 @@ class _TeamHomePage extends State<TeamHomePage> {
     '2:55-3:50'
   ];
   String selected = '8:00-8:55';
-
+  DateTime selectedDate = DateTime.now();
   @override
   void initState() {
     super.initState();
@@ -198,10 +199,7 @@ class _TeamHomePage extends State<TeamHomePage> {
 
   void depts() {
     for (var r in reports) {
-      result.add(report(
-        title: r,
-        access: 1,
-      ));
+      result.add(report(title: r, access: 1));
     }
   }
 
@@ -220,7 +218,7 @@ class _TeamHomePage extends State<TeamHomePage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            const date(),
+            date(),
             dropdown(
                 reports: cls_hours,
                 select: selected,
@@ -484,7 +482,18 @@ class _reportage extends State<reportage> {
                                                 widget.dept.toLowerCase())
                                             .doc('Courses')
                                             .get();
-
+                                    DocumentSnapshot session =
+                                        await FirebaseFirestore.instance
+                                            .collection("Session")
+                                            .doc("Current session")
+                                            .get();
+                                    Map<String, dynamic> sessions =
+                                        session as Map<String, dynamic>;
+                                    DateTime start =
+                                        (sessions['Start'] as Timestamp)
+                                            .toDate();
+                                    DateTime end =
+                                        (sessions['End'] as Timestamp).toDate();
                                     Map<String, dynamic> courses =
                                         temp.data() as Map<String, dynamic>;
 
@@ -503,6 +512,7 @@ class _reportage extends State<reportage> {
                                                 i +
                                                 data['Class'])
                                             .set({
+                                          'Session': '$start--$end',
                                           'Department': widget.dept,
                                           'Date':
                                               Timestamp.fromDate(date.selected),

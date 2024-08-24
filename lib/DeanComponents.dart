@@ -13,10 +13,12 @@ import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_storage/firebase_storage.dart';
+import 'package:path/path.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:syncfusion_flutter_xlsio/xlsio.dart' as xls;
+import 'Components.dart';
 
 class logo extends StatelessWidget {
   const logo({super.key});
@@ -144,14 +146,15 @@ class date extends StatefulWidget {
 }
 
 class _date extends State<date> {
+  DateTime selected = DateTime.now();
   Future<void> _selected(BuildContext context) async {
     final DateTime? picked = await showDatePicker(
         context: context,
-        initialDate: date.selected,
-        firstDate: DateTime(2020),
-        lastDate: DateTime(2025));
+        initialDate: selected,
+        firstDate: DateTime(DateTime.now().year - 4),
+        lastDate: DateTime(DateTime.now().year + 1));
 
-    if (picked != null && picked != date.selected) {
+    if (picked != null && picked != selected) {
       setState(() {
         if (picked.compareTo(DateTime.now()) > 0) {
           showDialog(
@@ -203,8 +206,7 @@ class _date extends State<date> {
                   const SizedBox(width: 10),
                   ElevatedButton(
                       onPressed: () => _selected(context),
-                      child: Text(
-                          DateFormat('dd-MM-yyyy').format(date.selected),
+                      child: Text(DateFormat('dd-MM-yyyy').format(selected),
                           style: const TextStyle(
                               fontSize: 18, color: Colors.black)))
                 ])));
@@ -270,7 +272,12 @@ class _dropdown extends State<dropdown> {
 class report extends StatelessWidget {
   final int access;
   final String title;
-  const report({super.key, required this.title, required this.access});
+
+  const report({
+    super.key,
+    required this.title,
+    required this.access,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -292,13 +299,17 @@ class report extends StatelessWidget {
                             Navigator.push(
                               context,
                               MaterialPageRoute(
-                                  builder: (context) => Details(dept: title)),
+                                  builder: (context) => Details(
+                                        dept: title,
+                                      )),
                             );
                           } else {
                             Navigator.push(
                               context,
                               MaterialPageRoute(
-                                  builder: (context) => reportage(dept: title)),
+                                  builder: (context) => reportage(
+                                        dept: title,
+                                      )),
                             );
                           }
                         },
@@ -321,7 +332,9 @@ class report extends StatelessWidget {
                         Navigator.push(
                           context,
                           MaterialPageRoute(
-                              builder: (context) => reportage(dept: title)),
+                              builder: (context) => reportage(
+                                    dept: title,
+                                  )),
                         );
                       }
                     },
@@ -452,7 +465,7 @@ class _uploadBox extends State<uploadBox> {
                     padding: const EdgeInsets.all(6),
                     child: ElevatedButton(
                         onPressed: () async {
-                          formatDownload(widget.title);
+                          formatDownload(context, widget.title);
                         },
                         style: ElevatedButton.styleFrom(
                             backgroundColor: Colors.black),
@@ -461,12 +474,536 @@ class _uploadBox extends State<uploadBox> {
                           style: TextStyle(fontSize: 17, color: Colors.white),
                         )))
               ]),
+              FutureBuilder(
+                  future: individualEntries(context, widget.title),
+                  builder: (context, snapshot) {
+                    if (snapshot.connectionState == ConnectionState.waiting) {
+                      return const Padding(
+                          padding: EdgeInsets.all(8),
+                          child: Center(child: CircularProgressIndicator()));
+                    } else if (snapshot.connectionState ==
+                        ConnectionState.done) {
+                      if (snapshot.hasError) {
+                        errorFunc(context, "Connection failed",
+                            "Couldn't establish connection to database.");
+                      } else {
+                        return snapshot.data!;
+                      }
+                    }
+                    return const SizedBox();
+                  })
             ],
           ),
         ));
   }
 
-  Future<void> formatDownload(String title) async {
+  Future<Widget> individualEntries(BuildContext context, String title) async {
+    final SharedPreferences prefs = await SharedPreferences.getInstance();
+    Map<String, dynamic> temp = (await FirebaseFirestore.instance
+            .collection('Team')
+            .doc(prefs.getString('email')!)
+            .get())
+        .data() as Map<String, dynamic>;
+    String dept = temp['Name'];
+    switch (title) {
+      case 'Faculty List':
+        ValueNotifier<String> name = ValueNotifier<String>('');
+        ValueNotifier<String> code = ValueNotifier<String>('');
+        String email = '';
+        final nameController = TextEditingController();
+        final codeController = TextEditingController();
+
+        nameController.addListener(() {
+          if (name.value != nameController.text) {
+            name.value = nameController.text;
+          }
+        });
+
+        codeController.addListener(() {
+          if (code.value != codeController.text) {
+            code.value = codeController.text;
+          }
+        });
+
+        QuerySnapshot temp = await FirebaseFirestore.instance
+            .collection("DeptList")
+            .doc(name_format(dept))
+            .collection("Faculty")
+            .get();
+        Map<String, dynamic> faculty = {};
+        for (var doc in temp.docs) {
+          faculty[doc.id] = doc.data();
+        }
+
+        void getNameCode(String selected) {
+          email = selected;
+          if (faculty.keys.toList().contains(selected)) {
+            name.value = faculty[selected]["Name"];
+            code.value = faculty[selected]["Code"];
+          }
+        }
+
+        return Column(children: [
+          Padding(
+              padding: const EdgeInsets.fromLTRB(25, 2, 25, 2),
+              child: SearchableDropdown(
+                placeholder: 'Email',
+                title: dept,
+                listOfValues: faculty.keys.toList(),
+                onSelected: getNameCode,
+              )),
+          Padding(
+              padding: const EdgeInsets.fromLTRB(25, 2, 25, 2),
+              child: Row(children: [
+                Expanded(
+                    child: ValueListenableBuilder<String>(
+                        valueListenable: name,
+                        builder: (context, value, child) {
+                          if (nameController.text != value) {
+                            nameController.text = value;
+                            nameController.selection =
+                                TextSelection.fromPosition(TextPosition(
+                                    offset: nameController.text.length));
+                          }
+
+                          return TextField(
+                            controller: nameController,
+                            decoration: const InputDecoration(
+                                labelText: 'Name',
+                                border: OutlineInputBorder()),
+                            onChanged: (newValue) {
+                              name.value = newValue;
+                            },
+                          );
+                        })),
+                const SizedBox(width: 10),
+                Expanded(
+                    child: ValueListenableBuilder<String>(
+                        valueListenable: code,
+                        builder: (context, value, child) {
+                          if (codeController.text != value) {
+                            codeController.text = value;
+                            codeController.selection =
+                                TextSelection.fromPosition(TextPosition(
+                                    offset: codeController.text.length));
+                          }
+
+                          return TextField(
+                            controller: codeController,
+                            decoration: const InputDecoration(
+                                labelText: 'Code',
+                                border: OutlineInputBorder()),
+                            onChanged: (newValue) {
+                              code.value = newValue;
+                            },
+                          );
+                        }))
+              ])),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.end,
+            children: [
+              CustomButton(
+                title: 'Remove',
+                onPress: () async {
+                  try {
+                    if (email == '') {
+                      throw Exception();
+                    }
+                    await FirebaseFirestore.instance
+                        .collection("DeptList")
+                        .doc(name_format(dept))
+                        .collection("Faculty")
+                        .doc(email)
+                        .delete();
+                    errorFunc(context, "User removed",
+                        "${name.value} has been removed.");
+                  } catch (e) {
+                    if (email == '') {
+                      errorFunc(context, "User not selected",
+                          "Please select a valid user.");
+                    }
+                    errorFunc(context, "Couldn't remove user",
+                        "Please ensure the correct user is chosen.");
+                  }
+                  setState(() {});
+                },
+              ),
+              CustomButton(
+                  title: 'Add',
+                  onPress: () async {
+                    try {
+                      if (code.value == '' || name.value == '') {
+                        throw Exception();
+                      }
+                      await FirebaseFirestore.instance
+                          .collection("DeptList")
+                          .doc(name_format(dept))
+                          .collection("Faculty")
+                          .doc(email)
+                          .set({
+                        "Code": code.value,
+                        "Name": name.value,
+                      }, SetOptions(merge: true));
+                      errorFunc(context, "User added",
+                          "${name.value} has been added.");
+                      setState(() {});
+                    } catch (e) {
+                      if (code.value == '' || name.value == '') {
+                        errorFunc(context, "Incomplete fields",
+                            "Please enter all details.");
+                      } else {
+                        errorFunc(
+                            context, "Couldn't add user", "Please try again.");
+                        setState(() {});
+                      }
+                    }
+                  })
+            ],
+          )
+        ]);
+
+      case "Course List":
+        String courseCode = '';
+        final courseController = TextEditingController();
+        ValueNotifier<String> course = ValueNotifier('');
+
+        courseController.addListener(() {
+          if (course.value != courseController.text) {
+            course.value = courseController.text;
+          }
+        });
+
+        DocumentSnapshot doc = await FirebaseFirestore.instance
+            .collection(dept)
+            .doc("Courses")
+            .get();
+        Map<String, dynamic> temp = doc.data() as Map<String, dynamic>;
+
+        void getCourse(String selected) {
+          courseCode = selected;
+          if (temp.keys.toList().contains(selected)) {
+            course.value = temp[selected];
+          }
+        }
+        return Column(children: [
+          Padding(
+              padding: const EdgeInsets.fromLTRB(25, 2, 25, 2),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                      child: SearchableDropdown(
+                          title: "Course Code",
+                          listOfValues: temp.keys.toList(),
+                          placeholder: "Course Code",
+                          onSelected: getCourse)),
+                  const SizedBox(width: 10),
+                  Expanded(
+                      child: ValueListenableBuilder<String>(
+                          valueListenable: course,
+                          builder: (context, value, child) {
+                            if (courseController.text != value) {
+                              courseController.text = value;
+                              courseController.selection =
+                                  TextSelection.fromPosition(TextPosition(
+                                      offset: courseController.text.length));
+                            }
+
+                            return TextField(
+                              controller: courseController,
+                              decoration: const InputDecoration(
+                                  labelText: 'Course',
+                                  border: OutlineInputBorder()),
+                              onChanged: (newValue) {
+                                course.value = newValue;
+                              },
+                            );
+                          }))
+                ],
+              )),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.end,
+            children: [
+              CustomButton(
+                title: 'Remove',
+                onPress: () async {
+                  try {
+                    if (courseCode == '') {
+                      throw Exception();
+                    }
+                    await FirebaseFirestore.instance
+                        .collection(dept)
+                        .doc("Courses")
+                        .set({courseCode: FieldValue.delete()},
+                            SetOptions(merge: true));
+
+                    errorFunc(context, "Course removed",
+                        "${course.value} has been removed.");
+                  } catch (e) {
+                    if (courseCode == '') {
+                      errorFunc(context, "User not selected",
+                          "Please select a valid user.");
+                    }
+                    errorFunc(context, "Couldn't remove Course",
+                        "Please ensure the correct user is chosen.");
+                  }
+                  setState(() {});
+                },
+              ),
+              CustomButton(
+                  title: 'Add',
+                  onPress: () async {
+                    try {
+                      if (course.value == '' || courseCode == '') {
+                        throw Exception();
+                      }
+                      await FirebaseFirestore.instance
+                          .collection(dept)
+                          .doc("Courses")
+                          .set({courseCode: course.value},
+                              SetOptions(merge: true));
+                      errorFunc(context, "Course added",
+                          "${course.value} has been added.");
+                      setState(() {});
+                    } catch (e) {
+                      if (course.value == '' || courseCode == '') {
+                        errorFunc(context, "Incomplete fields",
+                            "Please enter all details.");
+                      } else {
+                        errorFunc(context, "Couldn't add course",
+                            "Please try again.");
+                        setState(() {});
+                      }
+                    }
+                  })
+            ],
+          )
+        ]);
+
+      case "Team List":
+        Future<Map<String, String>> getAllFaculty() async {
+          Map<String, String> ans = {};
+          QuerySnapshot s =
+              await FirebaseFirestore.instance.collection('DeptList').get();
+
+          for (QueryDocumentSnapshot q in s.docs) {
+            QuerySnapshot c = await FirebaseFirestore.instance
+                .collection('DeptList')
+                .doc(q.id)
+                .collection('Faculty')
+                .get();
+            for (QueryDocumentSnapshot d in c.docs) {
+              ans[d.id] = (d.data() as Map<String, dynamic>)['Name'];
+            }
+          }
+          return ans;
+        }
+
+        Future<List<String>> getAllDepts() async {
+          QuerySnapshot s =
+              await FirebaseFirestore.instance.collection('DeptList').get();
+
+          return s.docs.map((doc) => doc.id).toList();
+        }
+        ValueNotifier<String> convener = ValueNotifier('');
+        ValueNotifier<Set<String>> members = ValueNotifier({});
+        ValueNotifier<Set<String>> depts = ValueNotifier({});
+        Map<String, String> faculty = await getAllFaculty();
+        List<String> departments = await getAllDepts();
+
+        return Padding(
+            padding: const EdgeInsets.fromLTRB(25, 2, 25, 2),
+            child: Column(children: [
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                      child: Column(children: [
+                    SearchableDropdown(
+                        title: "Convener",
+                        listOfValues: faculty.keys.toList(),
+                        placeholder: "Convener",
+                        onSelected: (String value) {
+                          convener.value = value;
+                        }),
+                    ValueListenableBuilder(
+                        valueListenable: convener,
+                        builder: (context, value, child) {
+                          if (convener.value == '') {
+                            return const SizedBox();
+                          }
+                          return Padding(
+                              padding: const EdgeInsets.all(6),
+                              child: Container(
+                                  decoration: BoxDecoration(
+                                      borderRadius: BorderRadius.circular(15),
+                                      color: const Color.fromARGB(
+                                          135, 158, 158, 158)),
+                                  child: Row(children: [
+                                    IconButton(
+                                        onPressed: () {
+                                          convener.value = '';
+                                          members.value = {};
+                                          depts.value = {};
+                                        },
+                                        icon: const Icon(Icons.close,
+                                            color: Colors.white)),
+                                    const SizedBox(width: 5),
+                                    Expanded(
+                                        child: Text(
+                                      convener.value,
+                                      softWrap: true,
+                                    )),
+                                  ])));
+                        })
+                  ])),
+                  const SizedBox(width: 10),
+                  Expanded(
+                      child: Column(children: [
+                    SearchableDropdown(
+                        title: "Team Member",
+                        listOfValues: faculty.keys.toList(),
+                        placeholder: "Team Member",
+                        onSelected: (String value) {
+                          members.value = Set.from(members.value)..add(value);
+                        }),
+                    ValueListenableBuilder(
+                        valueListenable: members,
+                        builder: (context, value, child) {
+                          if (members.value.isEmpty) {
+                            return const SizedBox();
+                          }
+
+                          return Column(
+                              children: members.value.map((faculty) {
+                            return Padding(
+                                padding: const EdgeInsets.all(6),
+                                child: Container(
+                                    decoration: BoxDecoration(
+                                        borderRadius: BorderRadius.circular(15),
+                                        color: const Color.fromARGB(
+                                            135, 158, 158, 158)),
+                                    child: Row(children: [
+                                      IconButton(
+                                          onPressed: () {
+                                            members.value =
+                                                Set.from(members.value)
+                                                  ..remove(faculty);
+                                          },
+                                          icon: const Icon(Icons.close,
+                                              color: Colors.white)),
+                                      const SizedBox(width: 5),
+                                      Expanded(
+                                          child: Text(
+                                        faculty,
+                                        softWrap: true,
+                                      )),
+                                    ])));
+                          }).toList());
+                        })
+                  ])),
+                  const SizedBox(width: 10),
+                  Expanded(
+                      child: Column(children: [
+                    SearchableDropdown(
+                        title: "Department",
+                        listOfValues: departments,
+                        placeholder: "Department",
+                        onSelected: (String value) {
+                          depts.value = Set.from(depts.value)..add(value);
+                        }),
+                    ValueListenableBuilder(
+                        valueListenable: depts,
+                        builder: (context, value, child) {
+                          if (depts.value.isEmpty) {
+                            return const SizedBox();
+                          }
+
+                          return Column(
+                              children: depts.value.map((dept) {
+                            return Padding(
+                                padding: const EdgeInsets.all(6),
+                                child: Container(
+                                    decoration: BoxDecoration(
+                                        borderRadius: BorderRadius.circular(15),
+                                        color: const Color.fromARGB(
+                                            135, 158, 158, 158)),
+                                    child: Row(children: [
+                                      IconButton(
+                                          onPressed: () {
+                                            depts.value = Set.from(depts.value)
+                                              ..remove(dept);
+                                          },
+                                          icon: const Icon(Icons.close,
+                                              color: Colors.white)),
+                                      const SizedBox(width: 5),
+                                      Expanded(
+                                          child: Text(
+                                        dept,
+                                        softWrap: true,
+                                      )),
+                                    ])));
+                          }).toList());
+                        })
+                  ]))
+                ],
+              ),
+              Row(mainAxisAlignment: MainAxisAlignment.end, children: [
+                CustomButton(
+                    title: 'Add',
+                    onPress: () async {
+                      if (convener.value == '' ||
+                          members.value == {} ||
+                          depts.value == {}) {
+                        errorFunc(context, "Incomplete details",
+                            "Please enter all details.");
+                      } else {
+                        try {
+                          await FirebaseFirestore.instance
+                              .collection('Team')
+                              .doc(convener.value)
+                              .set({
+                            'access': '1',
+                            'Name': faculty[convener.value]
+                          }, SetOptions(merge: true));
+                          signUp(context, convener.value);
+
+                          for (String facu in members.value) {
+                            await FirebaseFirestore.instance
+                                .collection('Team')
+                                .doc(facu)
+                                .set({'access': '0', 'Name': faculty[facu]},
+                                    SetOptions(merge: true));
+                            signUp(context, facu);
+                          }
+                          for (int i = 0; i < depts.value.length; i++) {
+                            DocumentReference doc = FirebaseFirestore.instance
+                                .collection('DeptList')
+                                .doc(depts.value.elementAt(i));
+                            doc.set({
+                              'Convener': faculty[convener.value],
+                              'Members': members.value.map((facu) {
+                                return faculty[facu];
+                              }).toList()
+                            }, SetOptions(merge: true));
+                          }
+                          errorFunc(context, "Team added",
+                              "New team has been added.");
+                          setState(() {});
+                          // create sessions
+                        } catch (e) {
+                          errorFunc(
+                              context, "Failure", "Couldn't add new team.");
+                        }
+                      }
+                    })
+              ])
+            ]));
+    }
+    return const SizedBox();
+  }
+
+  Future<void> formatDownload(BuildContext context, String title) async {
     final SharedPreferences prefs = await SharedPreferences.getInstance();
     final workbook = xls.Workbook();
     final worksheet = workbook.worksheets[0];
@@ -619,13 +1156,13 @@ Future<void> team(BuildContext context) async {
       .doc('dean.academic@bmsce.ac.in')
       .set(
           {'access': '2', 'Name': 'Dean of Academic'}, SetOptions(merge: true));
-  _signup(context, 'dean.academic@bmsce.ac.in');
+  signUp(context, 'dean.academic@bmsce.ac.in');
 
   await FirebaseFirestore.instance
       .collection('Team')
       .doc('principal@bmsce.ac.in')
       .set({'access': '2', 'Name': 'Principal'}, SetOptions(merge: true));
-  _signup(context, 'principal@bmsce.ac.in');
+  signUp(context, 'principal@bmsce.ac.in');
 
   QuerySnapshot<Map<String, dynamic>> signup = await FirebaseFirestore.instance
       .collection('DeptList')
@@ -655,7 +1192,7 @@ Future<void> team(BuildContext context) async {
           Map<String, dynamic> data = email.data() as Map<String, dynamic>;
           await FirebaseFirestore.instance.collection('Team').doc(email.id).set(
               {'access': '1', 'Name': data['Name']}, SetOptions(merge: true));
-          _signup(context, email.id);
+          signUp(context, email.id);
         }
       }
     }
@@ -671,7 +1208,7 @@ Future<void> team(BuildContext context) async {
           Map<String, dynamic> data = email.data() as Map<String, dynamic>;
           await FirebaseFirestore.instance.collection('Team').doc(email.id).set(
               {'access': '0', 'Name': data['Name']}, SetOptions(merge: true));
-          _signup(context, email.id);
+          signUp(context, email.id);
         }
       }
     }
@@ -687,7 +1224,7 @@ Future<void> team(BuildContext context) async {
   }
 }
 
-Future<void> _signup(BuildContext context, String email) async {
+Future<void> signUp(BuildContext context, String email) async {
   final FirebaseAuth auth = FirebaseAuth.instance;
 
   try {
@@ -797,7 +1334,7 @@ Future<void> parser(BuildContext context, String fileName, Uint8List fileBytes,
             'access': '3',
             'Name': row[1]!.value.toString().trim().toLowerCase()
           }, SetOptions(merge: true));
-          _signup(context, row[2]!.value.toString().trim());
+          signUp(context, row[2]!.value.toString().trim());
 
           await doc.set({
             'Members': member,
@@ -975,6 +1512,7 @@ void errorFunc(BuildContext context, String title, String message) {
 
 class Details extends StatefulWidget {
   final String dept;
+
   const Details({super.key, required this.dept});
   @override
   _Details createState() => _Details();
@@ -993,6 +1531,7 @@ class _Details extends State<Details> {
     List<Widget> reportList = [];
     DateTime d = date.selected;
     QuerySnapshot? reps;
+
     if (freqReport.freq == 'Weekly') {
       d = date.selected.subtract(const Duration(days: 7));
     } else if (freqReport.freq == 'Monthly') {
@@ -1001,37 +1540,30 @@ class _Details extends State<Details> {
       d = date.selected.subtract(const Duration(days: 90));
     }
 
-    try {
-      reps = await FirebaseFirestore.instance
-          .collection('Reports')
-          .where('Department', isEqualTo: widget.dept)
-          .where('Date',
-              isGreaterThanOrEqualTo:
-                  Timestamp.fromDate(DateTime(d.year, d.month, d.day, 0, 0)))
-          .where('Date',
-              isLessThanOrEqualTo: Timestamp.fromDate(DateTime(
-                  date.selected.year,
-                  date.selected.month,
-                  date.selected.day,
-                  23,
-                  59)))
-          .orderBy('Date', descending: true)
-          .get();
-      for (QueryDocumentSnapshot q in reps.docs) {
-        Map<String, dynamic> temp = q.data() as Map<String, dynamic>;
-        if (!temp.containsKey('Published')) {
-          Timestamp t = temp['Date'];
-          temp['Date'] = DateFormat('dd-MM-yyyy').format(t.toDate());
-          reportList.add(present(temp));
-        }
-      }
+    reps = await FirebaseFirestore.instance
+        .collection('Reports')
+        .where('Department', isEqualTo: widget.dept)
+        .where('Date',
+            isGreaterThanOrEqualTo:
+                Timestamp.fromDate(DateTime(d.year, d.month, d.day, 0, 0)))
+        .where('Date',
+            isLessThanOrEqualTo: Timestamp.fromDate(DateTime(date.selected.year,
+                date.selected.month, date.selected.day, 23, 59)))
+        .orderBy('Date', descending: true)
+        .get();
 
-      setState(() {
-        report = reportList;
-      });
-    } catch (e) {
-      errorFunc(context, 'Request Failed', 'Failed to retrive data.');
+    for (QueryDocumentSnapshot q in reps.docs) {
+      Map<String, dynamic> temp = q.data() as Map<String, dynamic>;
+      if (!temp.containsKey('Published')) {
+        Timestamp t = temp['Date'];
+        temp['Date'] = DateFormat('dd-MM-yyyy').format(t.toDate());
+        reportList.add(present(temp));
+      }
     }
+
+    setState(() {
+      report = reportList;
+    });
   }
 
   Widget present(Map<String, dynamic> temp) {
@@ -1124,6 +1656,10 @@ class _Details extends State<Details> {
                           height: 50,
                           width: 50,
                           child: CircularProgressIndicator()));
+                } else if (snapshot.hasError) {
+                  errorFunc(
+                      context, 'Request Failed', 'Failed to retrive data.');
+                  return const SizedBox();
                 } else {
                   return report.isEmpty
                       ? const Expanded(

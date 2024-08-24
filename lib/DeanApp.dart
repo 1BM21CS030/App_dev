@@ -1,8 +1,9 @@
-// ignore_for_file: library_private_types_in_public_api, empty_catches, file_names, non_constant_identifier_names, use_build_context_synchronously
+// ignore_for_file: library_private_types_in_public_api, empty_catches, file_names, non_constant_identifier_names, use_build_context_synchronously, must_be_immutable
 
 import 'dart:async';
 import 'dart:io';
 import 'dart:typed_data';
+import 'package:Monitor/Components.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:file_saver/file_saver.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
@@ -37,7 +38,7 @@ class _Dean extends State<Dean> {
     if (navBar.selected == 0) {
       return const DeanHomePage();
     } else if (navBar.selected == 1) {
-      return const DeanEditPage();
+      return DeanEditPage();
     } else {
       return const Profile();
     }
@@ -57,7 +58,7 @@ class _Dean extends State<Dean> {
 
   final List<Widget> pages = [
     const DeanHomePage(),
-    const DeanEditPage(),
+    DeanEditPage(),
     const Profile()
   ];
 
@@ -229,6 +230,7 @@ class _DeanHomePage extends State<DeanHomePage> {
     final workbook = xls.Workbook();
     final worksheet = workbook.worksheets[0];
     List<String> keys = [
+      'Session',
       'Date',
       'Department',
       'Time',
@@ -347,16 +349,218 @@ class _DeanHomePage extends State<DeanHomePage> {
 }
 
 class DeanEditPage extends StatelessWidget {
-  const DeanEditPage({super.key});
+  DeanEditPage({super.key});
+  TextEditingController admin = TextEditingController();
+  TextEditingController admin_name = TextEditingController();
+  ValueNotifier<DateTime> selected = ValueNotifier(DateTime.now());
+  ValueNotifier<DateTime> selected1 = ValueNotifier(DateTime.now());
   @override
   Widget build(BuildContext context) {
-    return const SingleChildScrollView(
+    return SingleChildScrollView(
         child: Column(
       mainAxisAlignment: MainAxisAlignment.center,
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        logo(),
-        uploadBox(title: 'Team List'),
+        const logo(),
+        const uploadBox(title: 'Team List'),
+        Padding(
+            padding: const EdgeInsets.all(6),
+            child: Container(
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: Colors.black, width: 1),
+              ),
+              child: Column(children: [
+                const Row(
+                    mainAxisAlignment: MainAxisAlignment.start,
+                    children: [
+                      Padding(
+                          padding: EdgeInsets.all(6),
+                          child: Text(
+                            "Administrators",
+                            style: TextStyle(fontSize: 24, color: Colors.black),
+                          ))
+                    ]),
+                Row(children: [
+                  Expanded(
+                      child: Padding(
+                          padding: const EdgeInsets.fromLTRB(25, 2, 2, 2),
+                          child: TextField(
+                            controller: admin,
+                            decoration: const InputDecoration(
+                              labelText: "Administrator Email",
+                              border: OutlineInputBorder(),
+                            ),
+                          ))),
+                  Expanded(
+                      child: Padding(
+                          padding: const EdgeInsets.fromLTRB(2, 2, 25, 2),
+                          child: TextField(
+                            controller: admin_name,
+                            decoration: const InputDecoration(
+                              labelText: "Administrator Name",
+                              border: OutlineInputBorder(),
+                            ),
+                          )))
+                ]),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    CustomButton(
+                        title: "Add",
+                        onPress: () async {
+                          if (admin.text == '' || admin_name.text == '') {
+                            errorFunc(context, "Incomplete details",
+                                "Please enter all details.");
+                          } else {
+                            try {
+                              signUp(context, admin.text);
+                              await FirebaseFirestore.instance
+                                  .collection("Team")
+                                  .doc(admin.text)
+                                  .set({'access': '2', 'Name': admin_name.text},
+                                      SetOptions(merge: true));
+                              errorFunc(context, "Administrator added",
+                                  "New administrator added.");
+                            } catch (e) {
+                              errorFunc(context, "Unsuccessful",
+                                  "Couldn't add administrator.");
+                            }
+                            admin.value = TextEditingValue.empty;
+                            admin_name.value = TextEditingValue.empty;
+                          }
+                        })
+                  ],
+                )
+              ]),
+            )),
+
+        //
+        Padding(
+            padding: const EdgeInsets.all(6),
+            child: Container(
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: Colors.black, width: 1),
+              ),
+              child: Column(children: [
+                const Row(
+                    mainAxisAlignment: MainAxisAlignment.start,
+                    children: [
+                      Padding(
+                          padding: EdgeInsets.all(6),
+                          child: Text(
+                            "Create session",
+                            style: TextStyle(fontSize: 24, color: Colors.black),
+                          ))
+                    ]),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                        children: [
+                          GestureDetector(
+                              onTap: () async {
+                                DateTime? picked = await showDatePicker(
+                                    context: context,
+                                    initialDate: selected.value,
+                                    firstDate:
+                                        DateTime(DateTime.now().year - 4),
+                                    lastDate:
+                                        DateTime(DateTime.now().year + 1));
+                                if (picked != null) {
+                                  selected.value = picked;
+                                }
+                              },
+                              child: const Icon(Icons.calendar_today,
+                                  color: Colors.white)),
+                          const SizedBox(width: 10),
+                          ElevatedButton(
+                              onPressed: () async {
+                                DateTime? picked = await showDatePicker(
+                                    context: context,
+                                    initialDate: selected1.value,
+                                    firstDate:
+                                        DateTime(DateTime.now().year - 4),
+                                    lastDate:
+                                        DateTime(DateTime.now().year + 1));
+                                if (picked != null) {
+                                  selected1.value = picked;
+                                }
+                              },
+                              child: ValueListenableBuilder<DateTime>(
+                                valueListenable: selected,
+                                builder: (context, value, child) {
+                                  return Text(
+                                      DateFormat('dd-MM-yyyy')
+                                          .format(selected.value),
+                                      style: const TextStyle(
+                                          fontSize: 18, color: Colors.black));
+                                },
+                              )),
+                          GestureDetector(
+                              onTap: () async {
+                                DateTime? picked = await showDatePicker(
+                                    context: context,
+                                    initialDate: selected1.value,
+                                    firstDate:
+                                        DateTime(DateTime.now().year - 4),
+                                    lastDate:
+                                        DateTime(DateTime.now().year + 1));
+                                if (picked != null) {
+                                  selected1.value = picked;
+                                }
+                              },
+                              child: const Icon(Icons.calendar_today,
+                                  color: Colors.white)),
+                          const SizedBox(width: 10),
+                          ElevatedButton(
+                              onPressed: () async {
+                                DateTime? picked = await showDatePicker(
+                                    context: context,
+                                    initialDate: selected1.value,
+                                    firstDate:
+                                        DateTime(DateTime.now().year - 4),
+                                    lastDate:
+                                        DateTime(DateTime.now().year + 1));
+                                if (picked != null) {
+                                  selected1.value = picked;
+                                }
+                              },
+                              child: ValueListenableBuilder<DateTime>(
+                                valueListenable: selected1,
+                                builder: (context, value, child) {
+                                  return Text(
+                                      DateFormat('dd-MM-yyyy')
+                                          .format(selected1.value),
+                                      style: const TextStyle(
+                                          fontSize: 18, color: Colors.black));
+                                },
+                              ))
+                        ]),
+                    CustomButton(
+                        title: "Add",
+                        onPress: () async {
+                          try {
+                            await FirebaseFirestore.instance
+                                .collection("Session")
+                                .doc("Current session")
+                                .set({
+                              'Start': selected.value,
+                              'End': selected1.value
+                            }, SetOptions(merge: true));
+                            errorFunc(context, "Session updated",
+                                "Latest session is added.");
+                          } catch (e) {
+                            errorFunc(
+                                context, "Failure", "Session addition failed.");
+                          }
+                        })
+                  ],
+                )
+              ]),
+            )),
       ],
     ));
   }
