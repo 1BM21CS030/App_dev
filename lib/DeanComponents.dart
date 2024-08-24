@@ -953,8 +953,8 @@ class _uploadBox extends State<uploadBox> {
                     title: 'Add',
                     onPress: () async {
                       if (convener.value == '' ||
-                          members.value == {} ||
-                          depts.value == {}) {
+                          members.value.isEmpty ||
+                          depts.value.isEmpty) {
                         errorFunc(context, "Incomplete details",
                             "Please enter all details.");
                       } else {

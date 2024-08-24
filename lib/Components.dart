@@ -80,7 +80,7 @@ class _SearchableDropdownState extends State<SearchableDropdown> {
           child: Material(
               elevation: 4.0,
               child: ConstrainedBox(
-                constraints: BoxConstraints(
+                constraints: const BoxConstraints(
                   maxHeight:
                       200, // Maximum height for the overlay to be scrollable
                 ),
